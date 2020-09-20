@@ -1,0 +1,87 @@
+#include "pch.h"
+
+#include <unreal/Terrain.h>
+
+namespace unreal {
+
+auto TerrainInfoActor::set_property(const Property &property) -> bool {
+  if (InfoActor::set_property(property)) {
+    return true;
+  }
+
+  if (property.name == "TerrainMap") {
+    terrain_map.from_property(property, archive);
+    return true;
+  }
+
+  if (property.name == "TerrainScale") {
+    terrain_scale = property.vector_value;
+    return true;
+  }
+
+  if (property.name == "QuadVisibilityBitmap") {
+    quad_visibility_bitmap.insert(property.data_value);
+    return true;
+  }
+
+  if (property.name == "EdgeTurnBitmap") {
+    edge_turn_bitmap.insert(property.data_value);
+    return true;
+  }
+
+  if (property.name == "MapX") {
+    map_x = property.int32_t_value;
+    return true;
+  }
+
+  if (property.name == "MapY") {
+    map_y = property.int32_t_value;
+    return true;
+  }
+
+  if (property.name == "Layers") {
+    TerrainLayer layer{};
+
+    layer.texture.from_property(property.find("Texture"), archive);
+    layer.alpha_map.from_property(property.find("AlphaMap"), archive);
+    layer.u_scale = property.find("UScale").float_value;
+    layer.v_scale = property.find("VScale").float_value;
+    layer.u_pan = property.find("UPan").float_value;
+    layer.v_pan = property.find("VPan").float_value;
+    layer.texture_map_axis = property.find("TextureMapAxis").uint8_t_value;
+    layer.texture_rotation = property.find("TextureRotation").float_value;
+
+    layers.push_back(std::move(layer));
+
+    return true;
+  }
+
+  return false;
+}
+
+auto TerrainInfoActor::position() const -> Vector {
+  const float width = terrain_map->u_size;
+  const float height = terrain_map->v_size;
+  const auto scale_ = scale();
+
+  return {location.x - width / 2.0f * scale_.x,
+          location.y - height / 2.0f * scale_.y,
+          location.z - 32768.0f * scale_.z};
+}
+
+auto TerrainInfoActor::scale() const -> Vector {
+  return {terrain_scale.x, terrain_scale.y, terrain_scale.z / 256.0f};
+}
+
+auto TerrainInfoActor::bounding_box() const -> Box {
+  const float width = terrain_map->u_size;
+  const float height = terrain_map->v_size;
+  const auto position_ = position();
+  const auto scale_ = scale();
+
+  return {{0.0f, 0.0f, -(16384.0f + position_.z) / scale_.z},
+          {width, height, (16384.0f - position_.z) / scale_.z},
+          true};
+}
+
+} // namespace unreal
