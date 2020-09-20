@@ -5,9 +5,18 @@
     <img src="assets/toi.png" width="400" />
 </p>
 
+L2 Geodata generator... someday.
+
+Tested with clients:
+
+- C1
+- HF
+
 ## TODO
 
-- Geodata generation
+- [x] Terrain, actors and CSG import
+- [x] Renderer for debugging
+- [ ] Geodata generation
 
 ## Credits
 
