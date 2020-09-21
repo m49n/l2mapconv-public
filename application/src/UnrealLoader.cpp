@@ -2,8 +2,6 @@
 
 #include "UnrealLoader.h"
 
-// TODO: names, add comments,
-
 UnrealLoader::UnrealLoader(const std::filesystem::path &root_path)
     : m_package_loader{root_path,
                        {unreal::SearchConfig{"MAPS", "unr"},
@@ -257,6 +255,7 @@ auto UnrealLoader::load_mesh_actors(const unreal::Package &package) const
     Entity entity{cached_mesh->second};
     place_actor(*mesh_actor, entity);
 
+    // Skip some floating entities.
     if (entity.position == glm::vec3{0.0f}) {
       continue;
     }
@@ -284,22 +283,29 @@ auto UnrealLoader::load_bsps(const unreal::Package &package) const
   ASSERT(!levels.empty(), "App", "No levels in package");
 
   for (const auto &level : levels) {
-    if (!level->model->points.empty()) {
-      entities.push_back(load_model(level->model));
+    const auto entity = load_model(level->model);
+
+    if (entity.has_value()) {
+      entities.push_back(entity.value());
     }
   }
 
   return entities;
 }
 
-auto UnrealLoader::load_model(const unreal::Model &model) const -> Entity {
+auto UnrealLoader::load_model(const unreal::Model &model) const
+    -> std::optional<Entity> {
+
+  if (model.points.empty()) {
+    return {};
+  }
+
   const auto mesh = std::make_shared<Mesh>();
 
   for (const auto &node : model.nodes) {
     const auto &surface = model.surfaces[node.surface_index];
 
-    if ((surface.polygon_flags & unreal::PF_Passable) != 0 ||
-        !surface.material) {
+    if ((surface.polygon_flags & unreal::PF_Passable) != 0) {
       continue;
     }
 
@@ -345,6 +351,10 @@ auto UnrealLoader::load_model(const unreal::Model &model) const -> Entity {
         mesh->indices.push_back(vertex_start + i - 1);
       }
     }
+  }
+
+  if (mesh->vertices.empty()) {
+    return {};
   }
 
   // Surface.

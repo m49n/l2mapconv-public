@@ -25,7 +25,7 @@ auto Application::run() -> int {
 
   const auto root_path = m_arguments[0];
 
-  // Make sure to remove systems & context before OpenGL context will be
+  // Make sure to remove systems & contexts before OpenGL context will be
   // destroyed.
   {
     std::vector<std::unique_ptr<System>> systems;

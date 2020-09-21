@@ -128,7 +128,8 @@ enum BSPPolygonFlags {
   PF_NoShadows = PF_Unlit | PF_Invisible | PF_Environment | PF_FakeBackdrop,
   PF_Transient = PF_Highlighted,
 
-  PF_Passable = PF_Invisible | PF_NotSolid | PF_Portal,
+  PF_Passable =
+      PF_NoOcclude | PF_NoImport | PF_AddLast | PF_NoShadows | PF_Portal,
 };
 
 struct BSPSurface {

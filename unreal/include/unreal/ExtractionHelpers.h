@@ -44,18 +44,6 @@ auto extract(StoreToT &store_to) -> ExtractHelper<ExtractAsT, StoreToT> {
   return ExtractHelper<ExtractAsT, StoreToT>{store_to};
 }
 
-// Array extraction.
-// TODO: Fix workaround for -1 array size on old clients.
-inline auto negative_array_size_workaround(std::int32_t size) -> bool {
-  if (size != -1) {
-    return false;
-  }
-
-  utils::Log(utils::LOG_WARN, "Unreal")
-      << "Extracted negative array size: " << size << std::endl;
-  return true;
-}
-
 template <typename ExtractSizeAsT, typename ExtractElementAsT,
           typename StoreToT>
 struct ExtractArrayHelper {
@@ -66,10 +54,6 @@ struct ExtractArrayHelper {
     ExtractSizeAsT size_value{};
     input_stream >> size_value;
     const std::int32_t size = size_value;
-
-    if (negative_array_size_workaround(size)) {
-      return input_stream;
-    }
 
     ASSERT(size >= 0, "Unreal", "Size can't be negative");
     store_to.reserve(size);
@@ -93,10 +77,6 @@ struct ExtractArrayHelper<ExtractSizeAsT, llvm::ulittle8_t, StoreToT> {
     ExtractSizeAsT size_value{};
     input_stream >> size_value;
     const std::int32_t size = size_value;
-
-    if (negative_array_size_workaround(size)) {
-      return input_stream;
-    }
 
     ASSERT(size >= 0, "Unreal", "Size can't be negative");
     store_to.resize(size);
@@ -124,10 +104,6 @@ struct ExtractArrayHelper<
     ExtractSizeAsT size_value{};
     input_stream >> size_value;
     const std::int32_t size = size_value;
-
-    if (negative_array_size_workaround(size)) {
-      return input_stream;
-    }
 
     ASSERT(size >= 0, "Unreal", "Size can't be negative");
     store_to.resize(size);

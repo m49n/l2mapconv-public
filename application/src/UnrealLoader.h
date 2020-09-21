@@ -13,6 +13,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -38,7 +39,7 @@ private:
 
   auto load_bsps(const unreal::Package &package) const -> std::vector<Entity>;
 
-  auto load_model(const unreal::Model &model) const -> Entity;
+  auto load_model(const unreal::Model &model) const -> std::optional<Entity>;
 
   void place_actor(const unreal::Actor &actor, Entity &entity) const;
 
