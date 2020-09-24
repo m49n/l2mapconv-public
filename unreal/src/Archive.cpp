@@ -217,4 +217,104 @@ auto Archive::operator>>(std::uint64_t &value) -> Archive & {
   return *this;
 }
 
+void Archive::dump(int lines, int line_length) {
+  std::istream &input = *this;
+
+  const auto byte_count = lines * line_length * 2;
+
+  const auto offset = input.tellg();
+  auto buffer = std::make_unique<char[]>(byte_count);
+
+  input.seekg(-byte_count / 2, std::ios::cur);
+  input.read(buffer.get(), byte_count);
+
+  printf("\n");
+
+  std::cout << "Package: " << name << std::endl;
+  std::cout << "Offset: " << offset << std::endl;
+
+  {
+    printf("\n");
+    printf("   ");
+    printf("\t");
+
+    for (auto i = 0; i < line_length; ++i) {
+      printf("%2d ", i);
+    }
+
+    printf("\t");
+    printf("   ");
+    printf("\t");
+
+    for (auto i = 0; i < line_length; ++i) {
+      printf("%2d ", i);
+    }
+
+    printf("\n");
+    printf("\n");
+  }
+
+  for (auto line = 0; line < lines * 2; ++line) {
+    if (line == lines) {
+      {
+        printf("\n");
+        printf("   ");
+        printf("\t");
+
+        for (auto i = 0; i < line_length; ++i) {
+          printf("%2d ", i);
+        }
+
+        printf("\t");
+        printf("   ");
+        printf("\t");
+
+        for (auto i = 0; i < line_length; ++i) {
+          printf("%2d ", i);
+        }
+
+        printf("\n");
+        printf("\n");
+      }
+    }
+
+    printf("%3d\t", line - lines);
+
+    for (auto i = 0; i < line_length; ++i) {
+      printf("%02x ",
+             static_cast<std::uint8_t>(buffer[(line * line_length) + i]));
+    }
+
+    printf("\t");
+    printf("%3d\t", line - lines);
+
+    for (auto i = 0; i < line_length; ++i) {
+      const auto &character = buffer[(line * line_length) + i];
+
+      if (isprint(character) != 0) {
+        printf(" %c ", character);
+      } else {
+        printf(" ■ ");
+      }
+    }
+
+    printf("\t");
+    printf("%3d\t", line - lines);
+
+    for (auto i = 0; i < line_length; ++i) {
+      const auto &character = buffer[(line * line_length) + i];
+
+      if (isprint(character) != 0) {
+        printf("%c", character);
+      } else {
+        printf("■");
+      }
+    }
+
+    printf("\n");
+  }
+
+  input.seekg(offset);
+}
+
 } // namespace unreal

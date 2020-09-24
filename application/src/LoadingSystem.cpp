@@ -44,7 +44,7 @@ LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
       //      "25_21",
       //      "26_11", "26_12",
 
-      "20_21", "23_18"
+      "12_24"
 
       // HF
       //      "11_23", "11_24", "11_25", "11_26", "12_23", "12_25", "12_26",

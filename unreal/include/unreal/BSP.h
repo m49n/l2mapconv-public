@@ -38,6 +38,8 @@ enum BSPNodeFlags {
 
   // Combinations of flags.
   NF_NeverMove = 0x00, // Bsp cleanup must not move nodes with these tags.
+
+  NF_Passable = NF_NotCsg | NF_NotVisBlocking,
 };
 
 struct BSPNode {

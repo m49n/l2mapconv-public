@@ -8,6 +8,7 @@
 #include <unreal/Package.h>
 #include <unreal/PackageLoader.h>
 #include <unreal/StaticMesh.h>
+#include <unreal/Terrain.h>
 
 #include <math/Box.h>
 
@@ -31,15 +32,20 @@ private:
   mutable std::unordered_map<std::string, std::shared_ptr<Mesh>>
       m_bb_mesh_cache;
 
-  auto load_terrains(const unreal::Package &package) const
+  auto load_map_package(int x, int y) const -> std::optional<unreal::Package>;
+  auto load_terrain(const unreal::Package &package) const
+      -> std::shared_ptr<unreal::TerrainInfoActor>;
+  auto load_side_terrain(int x, int y) const
+      -> std::shared_ptr<unreal::TerrainInfoActor>;
+
+  auto load_terrain_entities(const unreal::TerrainInfoActor &terrain) const
       -> std::vector<Entity>;
-
-  auto load_mesh_actors(const unreal::Package &package) const
+  auto load_mesh_actor_entities(const unreal::Package &package) const
       -> std::vector<Entity>;
-
-  auto load_bsps(const unreal::Package &package) const -> std::vector<Entity>;
-
-  auto load_model(const unreal::Model &model) const -> std::optional<Entity>;
+  auto load_bsp_entities(const unreal::Package &package) const
+      -> std::vector<Entity>;
+  auto load_model_entity(const unreal::Model &model) const
+      -> std::optional<Entity>;
 
   void place_actor(const unreal::Actor &actor, Entity &entity) const;
 

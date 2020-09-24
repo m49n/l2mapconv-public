@@ -130,6 +130,8 @@ public:
     return *this;
   }
 
+  void dump(int lines = 64, int line_length = 24);
+
   friend auto operator<<(std::ostream &output, const Archive &archive)
       -> std::ostream &;
 
