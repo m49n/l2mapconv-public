@@ -5,7 +5,7 @@
     <img src="assets/toi.png" width="400" />
 </p>
 
-L2 Geodata generator... someday.
+Lineage II geodata generator... someday.
 
 Tested with clients:
 
