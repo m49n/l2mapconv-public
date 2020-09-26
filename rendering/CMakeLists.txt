@@ -26,7 +26,6 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE utils
     PRIVATE math
 
-    # Third-party libs
     PRIVATE libglew_static
     PRIVATE glm
 )

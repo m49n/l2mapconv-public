@@ -44,13 +44,18 @@ public:
   std::int32_t map_x;
   std::int32_t map_y;
 
-  explicit TerrainInfoActor(Archive &archive) : InfoActor{archive} {}
+  explicit TerrainInfoActor(Archive &archive)
+      : InfoActor{archive}, terrain_scale{0.0f, 0.0f, 0.0f}, map_x{0}, map_y{
+                                                                           0} {}
 
   virtual auto set_property(const Property &property) -> bool override;
 
   auto position() const -> Vector;
   auto scale() const -> Vector;
   auto bounding_box() const -> Box;
+
+  // Broken terrain on HF map 12_24.
+  auto broken_scale() const -> bool;
 };
 
 } // namespace unreal

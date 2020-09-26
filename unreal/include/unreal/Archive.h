@@ -1,12 +1,12 @@
 #pragma once
 
-#include "ExtractionHelpers.h"
 #include "Index.h"
 #include "Name.h"
 #include "NameTable.h"
 #include "ObjectLoader.h"
 #include "PropertyExtractor.h"
 
+#include <utils/ExtractionHelpers.h>
 #include <utils/NonCopyable.h>
 
 #include <cstdint>
@@ -18,6 +18,8 @@
 #include <vector>
 
 namespace unreal {
+
+using namespace utils;
 
 class Object;
 class ArchiveLoader;
@@ -130,7 +132,7 @@ public:
     return *this;
   }
 
-  void dump(int lines = 64, int line_length = 24);
+  void dump(int line_count = 64, int line_length = 24);
 
   friend auto operator<<(std::ostream &output, const Archive &archive)
       -> std::ostream &;

@@ -22,13 +22,12 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE math
     PRIVATE unreal
     PRIVATE rendering
+    PRIVATE geodata
 
-    # Third-party libs
     PRIVATE glfw
     PRIVATE libglew_static
     PRIVATE glm
     PRIVATE imgui
-    PRIVATE llvm
 )
 
 # Compiler options

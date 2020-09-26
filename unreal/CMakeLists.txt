@@ -36,9 +36,6 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE src/pch.h)
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC utils
-
-    # Third-party libs
-    PUBLIC llvm
 )
 
 # Compiler options

@@ -40,11 +40,14 @@ private:
 
   auto load_terrain_entities(const unreal::TerrainInfoActor &terrain) const
       -> std::vector<Entity>;
-  auto load_mesh_actor_entities(const unreal::Package &package) const
+  auto load_mesh_actor_entities(const unreal::Package &package,
+                                const math::Box &map_bounding_box) const
       -> std::vector<Entity>;
-  auto load_bsp_entities(const unreal::Package &package) const
+  auto load_bsp_entities(const unreal::Package &package,
+                         const math::Box &map_bounding_box) const
       -> std::vector<Entity>;
-  auto load_model_entity(const unreal::Model &model) const
+  auto load_model_entity(const unreal::Model &model,
+                         const math::Box &map_bounding_box) const
       -> std::optional<Entity>;
 
   void place_actor(const unreal::Actor &actor, Entity &entity) const;
@@ -54,4 +57,11 @@ private:
 
   auto bounding_box_mesh(std::uint64_t type, const math::Box &box) const
       -> std::shared_ptr<Mesh>;
+
+  auto should_skip_bsp_node(const unreal::Model &model,
+                            const unreal::BSPNode &node,
+                            const math::Box &map_bounding_box) const -> bool;
+
+  auto should_skip_entity(const Entity &entity,
+                          const math::Box &map_bounding_box) const -> bool;
 };

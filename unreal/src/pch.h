@@ -4,6 +4,7 @@
 #include <utils/Bitset.h>
 #include <utils/Log.h>
 #include <utils/NonCopyable.h>
+#include <utils/StreamDump.h>
 
 #include <array>
 #include <bitset>

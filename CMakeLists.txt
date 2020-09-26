@@ -13,5 +13,6 @@ add_subdirectory(utils)
 add_subdirectory(math)
 add_subdirectory(unreal)
 add_subdirectory(rendering)
+add_subdirectory(geodata)
 
 add_subdirectory(application)

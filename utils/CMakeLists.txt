@@ -4,9 +4,14 @@ project(utils)
 add_library(${PROJECT_NAME}
     src/Log.cpp
     src/Bitset.cpp
+    src/StreamDump.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
+
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC llvm
+)
 
 # Compiler options
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -1,7 +1,6 @@
 #include "pch.h"
 
 #include <unreal/Archive.h>
-#include <unreal/ExtractionHelpers.h>
 #include <unreal/Name.h>
 #include <unreal/PropertyExtractor.h>
 

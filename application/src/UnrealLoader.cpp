@@ -19,19 +19,29 @@ auto UnrealLoader::load_map(const std::string &name) const
 
   // Terrain.
   const auto terrain = load_terrain(package);
-  const auto terrain_entities = load_terrain_entities(*terrain);
-  entities.insert(entities.end(),
-                  std::make_move_iterator(terrain_entities.begin()),
-                  std::make_move_iterator(terrain_entities.end()));
+
+  const auto position = to_vec3(terrain->position());
+  const auto scale = to_vec3(terrain->scale());
+  const auto bounding_box =
+      math::Box{to_vec3(terrain->bounding_box().min) * scale + position,
+                to_vec3(terrain->bounding_box().max) * scale + position};
+
+  if (!terrain->broken_scale()) {
+    const auto terrain_entities = load_terrain_entities(*terrain);
+    entities.insert(entities.end(),
+                    std::make_move_iterator(terrain_entities.begin()),
+                    std::make_move_iterator(terrain_entities.end()));
+  }
 
   // Mesh actors.
-  const auto mesh_actor_entities = load_mesh_actor_entities(package);
+  const auto mesh_actor_entities =
+      load_mesh_actor_entities(package, bounding_box);
   entities.insert(entities.end(),
                   std::make_move_iterator(mesh_actor_entities.begin()),
                   std::make_move_iterator(mesh_actor_entities.end()));
 
   // BSPs.
-  const auto bsp_entities = load_bsp_entities(package);
+  const auto bsp_entities = load_bsp_entities(package, bounding_box);
   entities.insert(entities.end(), std::make_move_iterator(bsp_entities.begin()),
                   std::make_move_iterator(bsp_entities.end()));
 
@@ -75,7 +85,13 @@ auto UnrealLoader::load_side_terrain(int x, int y) const
     return nullptr;
   }
 
-  return load_terrain(package.value());
+  const auto terrain = load_terrain(package.value());
+
+  if (terrain->broken_scale()) {
+    return nullptr;
+  }
+
+  return terrain;
 }
 
 auto UnrealLoader::load_terrain_entities(
@@ -91,8 +107,8 @@ auto UnrealLoader::load_terrain_entities(
   const auto mesh = std::make_shared<Mesh>();
 
   {
-    const glm::vec3 position = to_vec3(terrain.position());
-    const glm::vec3 scale = to_vec3(terrain.scale());
+    const auto position = to_vec3(terrain.position());
+    const auto scale = to_vec3(terrain.scale());
 
     const auto *heightmap = mips[0].as<std::uint16_t>();
 
@@ -299,7 +315,8 @@ auto UnrealLoader::load_terrain_entities(
 }
 
 auto UnrealLoader::load_mesh_actor_entities(
-    const unreal::Package &package) const -> std::vector<Entity> {
+    const unreal::Package &package, const math::Box &map_bounding_box) const
+    -> std::vector<Entity> {
 
   std::vector<Entity> entities;
 
@@ -391,8 +408,7 @@ auto UnrealLoader::load_mesh_actor_entities(
     Entity entity{cached_mesh->second};
     place_actor(*mesh_actor, entity);
 
-    // Skip some floating entities.
-    if (entity.position == glm::vec3{0.0f}) {
+    if (should_skip_entity(entity, map_bounding_box)) {
       continue;
     }
 
@@ -409,7 +425,8 @@ auto UnrealLoader::load_mesh_actor_entities(
   return entities;
 }
 
-auto UnrealLoader::load_bsp_entities(const unreal::Package &package) const
+auto UnrealLoader::load_bsp_entities(const unreal::Package &package,
+                                     const math::Box &map_bounding_box) const
     -> std::vector<Entity> {
 
   std::vector<Entity> entities;
@@ -419,7 +436,7 @@ auto UnrealLoader::load_bsp_entities(const unreal::Package &package) const
   ASSERT(!levels.empty(), "App", "No levels in package");
 
   for (const auto &level : levels) {
-    const auto entity = load_model_entity(level->model);
+    const auto entity = load_model_entity(level->model, map_bounding_box);
 
     if (entity.has_value()) {
       entities.push_back(entity.value());
@@ -429,7 +446,8 @@ auto UnrealLoader::load_bsp_entities(const unreal::Package &package) const
   return entities;
 }
 
-auto UnrealLoader::load_model_entity(const unreal::Model &model) const
+auto UnrealLoader::load_model_entity(const unreal::Model &model,
+                                     const math::Box &map_bounding_box) const
     -> std::optional<Entity> {
 
   if (model.points.empty()) {
@@ -440,6 +458,10 @@ auto UnrealLoader::load_model_entity(const unreal::Model &model) const
 
   for (const auto &node : model.nodes) {
     if ((node.flags & unreal::NF_Passable) != 0) {
+      continue;
+    }
+
+    if (should_skip_bsp_node(model, node, map_bounding_box)) {
       continue;
     }
 
@@ -521,7 +543,8 @@ auto UnrealLoader::collides(const unreal::StaticMeshActor &mesh_actor,
                             const unreal::StaticMeshMaterial &material) const
     -> bool {
 
-  if (!mesh_actor.collide_actors) {
+  if (!mesh_actor.collide_actors || !mesh_actor.block_actors ||
+      !mesh_actor.block_players) {
     return false;
   }
 
@@ -576,4 +599,32 @@ auto UnrealLoader::bounding_box_mesh(std::uint64_t type,
   mesh->surfaces.push_back(std::move(surface));
 
   return mesh;
+}
+
+auto UnrealLoader::should_skip_bsp_node(const unreal::Model &model,
+                                        const unreal::BSPNode &node,
+                                        const math::Box &map_bounding_box) const
+    -> bool {
+
+  for (auto i = 0; i < node.vertex_count; ++i) {
+    const auto &position =
+        model.points[model.vertices[node.vertex_pool_index + i].vertex_index];
+
+    if (!map_bounding_box.contains(to_vec3(position))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+auto UnrealLoader::should_skip_entity(const Entity &entity,
+                                      const math::Box &map_bounding_box) const
+    -> bool {
+
+  if (entity.position == glm::vec3{0.0f}) {
+    return true;
+  }
+
+  return false;
 }
