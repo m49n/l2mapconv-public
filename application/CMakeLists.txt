@@ -40,9 +40,14 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
 
 # Copy resources
+file(GLOB INSTALL_FILES ${CMAKE_CURRENT_SOURCE_DIR}/install/*)
+
 add_custom_target(copy-resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/resources
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${INSTALL_FILES}
         $<TARGET_FILE_DIR:${PROJECT_NAME}>
     DEPENDS ${PROJECT_NAME}
 )

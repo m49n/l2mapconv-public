@@ -7,7 +7,7 @@
     <img src="assets/geo_giran.png" width="400" />
 </p>
 
-L2 geodata generator... someday.
+Lineage II geodata generator... someday.
 
 Tested with clients:
 
@@ -16,11 +16,11 @@ Tested with clients:
 
 ## Features
 
+- Map rendering
 - L2J geodata preview
 
 ## Todo
 
-- [ ] Blocking volumes import
 - [ ] Geodata generation
 
 ## Usage
@@ -35,7 +35,7 @@ Tested with clients:
 
 ## Building
 
-Tested on environment:
+Minimal requirements:
 
 - Windows 10
 - MVS 2019

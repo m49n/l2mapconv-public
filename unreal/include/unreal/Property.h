@@ -54,11 +54,8 @@ struct Property {
     std::int32_t int32_t_value;
     float float_value;
     Index index_value;
-    Color color_value;
     Vector vector_value;
     Rotator rotator_value;
-    Plane plane_value;
-    Scale scale_value;
   };
 
   std::vector<std::uint8_t> data_value;

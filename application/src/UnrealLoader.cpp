@@ -40,8 +40,7 @@ auto UnrealLoader::load_map(const std::string &name, glm::vec3 &position) const
   }
 
   // Mesh actors.
-  const auto mesh_actor_entities =
-      load_mesh_actor_entities(package, bounding_box);
+  const auto mesh_actor_entities = load_mesh_actor_entities(package);
   entities.insert(entities.end(),
                   std::make_move_iterator(mesh_actor_entities.begin()),
                   std::make_move_iterator(mesh_actor_entities.end()));
@@ -50,6 +49,12 @@ auto UnrealLoader::load_map(const std::string &name, glm::vec3 &position) const
   const auto bsp_entities = load_bsp_entities(package, bounding_box);
   entities.insert(entities.end(), std::make_move_iterator(bsp_entities.begin()),
                   std::make_move_iterator(bsp_entities.end()));
+
+  // Volumes.
+  const auto volume_entities = load_volume_entities(package, bounding_box);
+  entities.insert(entities.end(),
+                  std::make_move_iterator(volume_entities.begin()),
+                  std::make_move_iterator(volume_entities.end()));
 
   return entities;
 }
@@ -304,7 +309,7 @@ auto UnrealLoader::load_terrain_entities(
   surface.type = SURFACE_TERRAIN;
   surface.index_offset = 0;
   surface.index_count = mesh->indices.size();
-  surface.material.color = {0.8f, 0.8f, 0.8f};
+  surface.material.color = {0.85f, 0.85f, 0.85f};
 
   mesh->surfaces.push_back(std::move(surface));
 
@@ -322,8 +327,7 @@ auto UnrealLoader::load_terrain_entities(
 }
 
 auto UnrealLoader::load_mesh_actor_entities(
-    const unreal::Package &package, const math::Box &map_bounding_box) const
-    -> std::vector<Entity<EntityMesh>> {
+    const unreal::Package &package) const -> std::vector<Entity<EntityMesh>> {
 
   std::vector<Entity<EntityMesh>> entities;
 
@@ -415,10 +419,6 @@ auto UnrealLoader::load_mesh_actor_entities(
     Entity entity{cached_mesh->second};
     place_actor(*mesh_actor, entity);
 
-    if (should_skip_entity(entity, map_bounding_box)) {
-      continue;
-    }
-
     entities.push_back(std::move(entity));
 
     // Bounding box entity.
@@ -453,8 +453,36 @@ auto UnrealLoader::load_bsp_entities(const unreal::Package &package,
   return entities;
 }
 
+auto UnrealLoader::load_volume_entities(const unreal::Package &package,
+                                        const math::Box &map_bounding_box) const
+    -> std::vector<Entity<EntityMesh>> {
+
+  std::vector<Entity<EntityMesh>> entities;
+
+  std::vector<std::shared_ptr<unreal::BlockingVolumeActor>> volumes;
+  package.load_objects("BlockingVolume", volumes);
+
+  for (const auto &volume : volumes) {
+    if (!volume->brush) {
+      continue;
+    }
+
+    const auto optional_entity =
+        load_model_entity(volume->brush, map_bounding_box, false);
+
+    if (optional_entity.has_value()) {
+      auto entity = optional_entity.value();
+      place_actor(*volume, entity);
+      entities.push_back(entity);
+    }
+  }
+
+  return entities;
+}
+
 auto UnrealLoader::load_model_entity(const unreal::Model &model,
-                                     const math::Box &map_bounding_box) const
+                                     const math::Box &map_bounding_box,
+                                     bool check_bounds) const
     -> std::optional<Entity<EntityMesh>> {
 
   if (model.points.empty()) {
@@ -468,7 +496,7 @@ auto UnrealLoader::load_model_entity(const unreal::Model &model,
       continue;
     }
 
-    if (should_skip_bsp_node(model, node, map_bounding_box)) {
+    if (check_bounds && check_bsp_node_bounds(model, node, map_bounding_box)) {
       continue;
     }
 
@@ -608,10 +636,9 @@ auto UnrealLoader::bounding_box_mesh(std::uint64_t type,
   return mesh;
 }
 
-auto UnrealLoader::should_skip_bsp_node(const unreal::Model &model,
-                                        const unreal::BSPNode &node,
-                                        const math::Box &map_bounding_box) const
-    -> bool {
+auto UnrealLoader::check_bsp_node_bounds(
+    const unreal::Model &model, const unreal::BSPNode &node,
+    const math::Box &map_bounding_box) const -> bool {
 
   for (auto i = 0; i < node.vertex_count; ++i) {
     const auto &position =
@@ -623,11 +650,4 @@ auto UnrealLoader::should_skip_bsp_node(const unreal::Model &model,
   }
 
   return false;
-}
-
-auto UnrealLoader::should_skip_entity(
-    const Entity<EntityMesh> &entity,
-    const math::Box & /*map_bounding_box*/) const -> bool {
-
-  return entity.position == glm::vec3{0.0f};
 }

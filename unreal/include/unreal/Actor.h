@@ -44,7 +44,7 @@ public:
 
 class BrushActor : public Actor {
 public:
-  ObjectRef<Model> brush;
+  ObjectRef<Model, ObjectRefConstraint::Optional> brush;
 
   explicit BrushActor(Archive &archive) : Actor{archive} {}
 

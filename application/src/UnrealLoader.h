@@ -42,14 +42,18 @@ private:
 
   auto load_terrain_entities(const unreal::TerrainInfoActor &terrain) const
       -> std::vector<Entity<EntityMesh>>;
-  auto load_mesh_actor_entities(const unreal::Package &package,
-                                const math::Box &map_bounding_box) const
+  auto load_mesh_actor_entities(const unreal::Package &package) const
       -> std::vector<Entity<EntityMesh>>;
   auto load_bsp_entities(const unreal::Package &package,
                          const math::Box &map_bounding_box) const
       -> std::vector<Entity<EntityMesh>>;
+  auto load_volume_entities(const unreal::Package &package,
+                            const math::Box &map_bounding_box) const
+      -> std::vector<Entity<EntityMesh>>;
+
   auto load_model_entity(const unreal::Model &model,
-                         const math::Box &map_bounding_box) const
+                         const math::Box &map_bounding_box,
+                         bool check_bounds = true) const
       -> std::optional<Entity<EntityMesh>>;
 
   void place_actor(const unreal::Actor &actor,
@@ -61,10 +65,7 @@ private:
   auto bounding_box_mesh(std::uint64_t type, const math::Box &box) const
       -> std::shared_ptr<EntityMesh>;
 
-  auto should_skip_bsp_node(const unreal::Model &model,
-                            const unreal::BSPNode &node,
-                            const math::Box &map_bounding_box) const -> bool;
-
-  auto should_skip_entity(const Entity<EntityMesh> &entity,
-                          const math::Box &map_bounding_box) const -> bool;
+  auto check_bsp_node_bounds(const unreal::Model &model,
+                             const unreal::BSPNode &node,
+                             const math::Box &map_bounding_box) const -> bool;
 };

@@ -68,8 +68,10 @@ auto main(int argc, char **argv) -> int {
     };
 
     for (const auto &name : package_names) {
-      load_package(package_loader, name);
+      //      load_package(package_loader, name);
     }
+
+    load_package(package_loader, package_name);
 
     utils::Log(utils::LOG_INFO) << "Done" << std::endl;
 
@@ -104,6 +106,7 @@ void load_package(const unreal::PackageLoader &package_loader,
   std::vector<std::shared_ptr<unreal::StaticMeshActor>> mesh_actors;
   package.load_objects("StaticMeshActor", mesh_actors);
   package.load_objects("MovableStaticMeshActor", mesh_actors);
+  package.load_objects("L2MovableStaticMeshActor", mesh_actors);
   utils::Log(utils::LOG_INFO)
       << "Static Mesh Actors: " << mesh_actors.size() << std::endl;
 

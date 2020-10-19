@@ -96,12 +96,6 @@ void PropertyExtractor::deserialize(Property &property) const {
       m_archive >> property.rotator_value;
     } else if (property.struct_name == "Vector") {
       m_archive >> property.vector_value;
-    } else if (property.struct_name == "Color") {
-      m_archive >> property.color_value;
-    } else if (property.struct_name == "Scale") {
-      m_archive >> property.scale_value;
-    } else if (property.struct_name == "Plane") {
-      m_archive >> property.plane_value;
     } else if (property.struct_name == "TerrainLayer") {
       property.properties.push_back(extract_properties_map());
     } else {
