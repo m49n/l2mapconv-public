@@ -2,12 +2,8 @@
 
 <p align="center">
     <img src="assets/cruma.png" width="400" />
-    &nbsp;
     <img src="assets/toi.png" width="400" />
-</p>
-<p align="center">
     <img src="assets/geo_cruma.png" width="400" />
-    &nbsp;
     <img src="assets/geo_giran.png" width="400" />
 </p>
 

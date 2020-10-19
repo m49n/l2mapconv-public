@@ -15,8 +15,8 @@ void CameraSystem::frame_begin(Timestep frame_time) {
   const auto &keyboard = m_window_context.keyboard;
   auto &camera = m_rendering_context.camera;
 
+  // Rotation.
   if (mouse.right) {
-    // Rotation.
     camera.rotate(-mouse.position.dx * rotation_speed, camera.up());
     camera.rotate(-mouse.position.dy * rotation_speed, camera.right());
   }
