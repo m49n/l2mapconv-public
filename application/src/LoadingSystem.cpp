@@ -1,108 +1,51 @@
 #include "pch.h"
 
+#include "GeodataLoader.h"
 #include "LoadingSystem.h"
 #include "UnrealLoader.h"
 
 LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
-                             const std::filesystem::path &root_path)
+                             const std::filesystem::path &root_path,
+                             const std::vector<std::string> &maps)
     : m_rendering_context{rendering_context} {
 
   UnrealLoader unreal_loader{root_path};
+  GeodataLoader geodata_loader;
 
   rendering::ShaderLoader shader_loader{m_rendering_context.context, "shaders"};
-  const auto shader = shader_loader.load_shader("default");
+  const auto entity_shader = shader_loader.load_entity_shader("entity");
+  const auto geodata_shader = shader_loader.load_entity_shader("geodata");
 
-  std::vector<std::string> maps = {
-      // C1
-      "15_22", "15_23", "15_24", "15_25", "15_26", "16_20", "16_21", "16_22",
-      "16_23", "16_24", "16_25", "16_26", "17_18", "17_19", "17_20", "17_21",
-      "17_22", "17_23", "17_24", "17_25", "17_26", "18_13", "18_14", "18_15",
-      "18_17", "18_18", "18_19", "18_20", "18_21", "18_22", "18_23", "18_24",
-      "18_25", "18_26", "19_13", "19_14", "19_15", "19_16", "19_17", "19_18",
-      "19_19", "19_20", "19_21", "19_22", "19_23", "19_24", "19_25", "20_13",
-      "20_14", "20_15", "20_17", "20_18", "20_19", "20_20", "20_20", "20_21",
-      "20_22", "20_23", "20_24", "20_25", "21_13", "21_14", "21_15", "21_17",
-      "21_18", "21_19", "21_20", "21_21", "21_22", "21_23", "21_24", "21_25",
-      "22_17", "22_18", "22_19", "22_20", "22_21", "22_22", "22_23", "22_24",
-      "23_10", "23_11", "23_12", "23_17", "23_18", "23_19", "23_20", "23_21",
-      "23_22", "23_23", "23_24", "23_25", "24_10", "24_11", "24_12", "24_17",
-      "24_18", "24_19", "24_20", "24_21", "24_22", "24_23", "24_24", "24_25",
-      "25_10", "25_11", "25_12", "25_17", "25_18", "25_19", "25_20", "25_21",
-      "26_11", "26_12",
+  rendering::TextureLoader texture_loader{m_rendering_context.context,
+                                          "textures"};
+  const auto nswe_texture = texture_loader.load_texture("nswe.png");
 
-      //      "12_24", "11_24", "12_23",
-
-      // HF
-      //      "11_23", "11_24", "11_25", "11_26", "12_23", "12_25", "12_26",
-      //      "13_24",
-      //      "13_25", "13_26", "14_22", "14_23", "14_24", "14_25", "14_26",
-      //      "15_10",
-      //      "15_11", "15_12", "15_18", "15_19", "15_20", "15_22", "15_24",
-      //      "15_25",
-      //      "15_26", "16_10", "16_11", "16_12", "16_13", "16_14", "16_15",
-      //      "16_16",
-      //      "16_17", "16_18", "16_19", "16_20", "16_21", "16_22", "16_23",
-      //      "16_24",
-      //      "16_25", "16_26", "17_10", "17_11", "17_12", "17_13", "17_14",
-      //      "17_15",
-      //      "17_16", "17_17", "17_18", "17_19", "17_20", "17_21", "17_22",
-      //      "17_23",
-      //      "17_24", "17_25", "17_26", "18_10", "18_11", "18_12", "18_13",
-      //      "18_14",
-      //      "18_15", "18_16", "18_17", "18_18", "18_19", "18_20", "18_21",
-      //      "18_22",
-      //      "18_23", "18_24", "18_25", "18_26", "19_10", "19_11", "19_12",
-      //      "19_13",
-      //      "19_14", "19_15", "19_16", "19_17", "19_18", "19_19", "19_20",
-      //      "19_21",
-      //      "19_22", "19_23", "19_24", "19_25", "19_26", "20_10", "20_11",
-      //      "20_12",
-      //      "20_13", "20_14", "20_15", "20_16", "20_17", "20_18", "20_19",
-      //      "20_20",
-      //      "20_21", "20_22", "20_23", "20_24", "20_25", "20_26", "21_10",
-      //      "21_11",
-      //      "21_12", "21_13", "21_14", "21_15", "21_16", "21_17", "21_18",
-      //      "21_19",
-      //      "21_20", "21_21", "21_22", "21_23", "21_24", "21_25", "22_10",
-      //      "22_11",
-      //      "22_12", "22_13", "22_14", "22_15", "22_16", "22_17", "22_18",
-      //      "22_19",
-      //      "22_20", "22_21", "22_22", "22_23", "22_24", "22_25", "22_26",
-      //      "23_10",
-      //      "23_11", "23_12", "23_13", "23_14", "23_15", "23_16", "23_17",
-      //      "23_18",
-      //      "23_19", "23_20", "23_21", "23_22", "23_23", "23_24", "23_25",
-      //      "23_26",
-      //      "24_10", "24_11", "24_12", "24_13", "24_14", "24_15", "24_16",
-      //      "24_17",
-      //      "24_18", "24_19", "24_20", "24_21", "24_22", "24_23", "24_24",
-      //      "24_25",
-      //      "24_26", "25_10", "25_11", "25_12", "25_14", "25_15", "25_16",
-      //      "25_17",
-      //      "25_18", "25_19", "25_20", "25_21", "25_22", "25_23", "25_24",
-      //      "26_11",
-      //      "26_12", "26_14", "26_15", "26_16", "13_21", "13_22", "13_23",
-      //      "14_21",
-      //      "15_21", "15_23", "12_24",
-  };
-
-  std::unordered_map<std::shared_ptr<Mesh>,
+  std::unordered_map<std::shared_ptr<EntityMesh>,
                      std::shared_ptr<rendering::EntityMesh>>
       mesh_cache;
 
   for (const auto &map : maps) {
-    const auto entities = unreal_loader.load_map(map);
+    glm::vec3 map_position{};
 
-    for (const auto &entity : entities) {
+    const auto map_entities = unreal_loader.load_map(map, map_position);
+
+    // Set initial camera position.
+    if (!map_entities.empty()) {
+      m_rendering_context.camera.set_position(
+          {map_position.x + 256.0f * 64.0f, map_position.y, 0.0f});
+    }
+
+    for (const auto &entity : map_entities) {
       auto cached_mesh = mesh_cache.find(entity.mesh);
 
       if (cached_mesh == mesh_cache.end()) {
         std::vector<rendering::MeshSurface> surfaces;
 
         for (const auto &surface : entity.mesh->surfaces) {
-          surfaces.push_back(rendering::MeshSurface{
-              surface.type, surface.index_offset, surface.index_count,
-              rendering::Material{surface.material.color}});
+          surfaces.emplace_back(
+              surface.type,
+              rendering::Material{surface.material.color, nullptr},
+              surface.index_offset, surface.index_count);
         }
 
         std::vector<rendering::Vertex> vertices;
@@ -111,18 +54,56 @@ LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
           vertices.push_back({vertex.position, vertex.normal, vertex.uv});
         }
 
+        const std::vector<glm::mat4> &model_matrices =
+            entity.mesh->model_matrices.empty() ? std::vector{glm::mat4{1.0f}}
+                                                : entity.mesh->model_matrices;
+
         const auto mesh = std::make_shared<rendering::EntityMesh>(
             m_rendering_context.context, vertices, entity.mesh->indices,
-            surfaces, entity.mesh->bounding_box);
+            surfaces, model_matrices, entity.mesh->bounding_box);
 
         cached_mesh = mesh_cache.insert({entity.mesh, mesh}).first;
       }
 
-      rendering::Entity rendering_entity{cached_mesh->second, shader,
-                                         entity.model_matrix()};
-      rendering_entity.wireframe = entity.wireframe;
+      rendering::Entity rendering_entity{cached_mesh->second, entity_shader,
+                                         entity.model_matrix(),
+                                         entity.wireframe};
 
-      m_rendering_context.tree.add(rendering_entity);
+      m_rendering_context.entity_tree.add(rendering_entity);
+    }
+
+    const auto geodata_entities =
+        geodata_loader.load_geodata(map, map_position);
+
+    for (const auto &entity : geodata_entities) {
+      std::vector<rendering::GeodataBlock> blocks;
+
+      for (const auto &block : entity.mesh->blocks) {
+        blocks.push_back({
+            static_cast<std::int32_t>(block.x),
+            static_cast<std::int32_t>(block.y),
+            static_cast<std::int32_t>(block.z),
+            static_cast<std::uint16_t>(block.type),
+            block.north,
+            block.south,
+            block.west,
+            block.east,
+        });
+      }
+
+      rendering::MeshSurface surface{
+          entity.mesh->surface.type,
+          rendering::Material{entity.mesh->surface.material.color,
+                              nswe_texture},
+          0, 0};
+
+      const auto mesh = std::make_shared<rendering::GeodataMesh>(
+          m_rendering_context.context, blocks, surface);
+
+      rendering::Entity rendering_entity{mesh, geodata_shader,
+                                         entity.model_matrix(), false};
+
+      m_rendering_context.entity_tree.add(rendering_entity);
     }
   }
 }

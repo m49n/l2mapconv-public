@@ -44,7 +44,7 @@ Box::Box(const Box &box, const glm::mat4 &model_matrix)
 auto Box::min() const -> const glm::vec3 & { return m_min; }
 auto Box::max() const -> const glm::vec3 & { return m_max; }
 
-auto Box::valid() const -> bool { return m_valid; }
+auto Box::is_zero() const -> bool { return m_max - m_min == glm::vec3{0.0f}; }
 
 auto Box::operator+=(const glm::vec3 &point) -> Box & {
   if (m_valid) {

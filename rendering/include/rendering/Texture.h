@@ -17,7 +17,7 @@ public:
   };
 
   explicit Texture(Context &context, Format format, int width, int height,
-                   const std::vector<std::uint8_t> &data);
+                   const unsigned char *data);
 
   virtual ~Texture();
 

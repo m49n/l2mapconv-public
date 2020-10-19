@@ -12,5 +12,6 @@ struct UIContext {
     bool static_meshes;
     bool csg;
     bool bounding_boxes;
+    bool geodata;
   } input;
 };

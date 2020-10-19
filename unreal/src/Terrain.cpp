@@ -68,19 +68,18 @@ auto TerrainInfoActor::position() const -> Vector {
     return {location.x - width / 2.0f * scale_.x,
             location.y - height / 2.0f * scale_.y,
             location.z - 32768.0f * scale_.z};
-
-  } else {
-    return {(map_x - 20) * width * 128.0f, (map_y - 18) * height * 128.0f,
-            0.0f};
   }
+
+  return {static_cast<float>(map_x - 20) * width * 128.0f,
+          static_cast<float>(map_y - 18) * height * 128.0f, 0.0f};
 }
 
 auto TerrainInfoActor::scale() const -> Vector {
   if (!broken_scale()) {
     return {terrain_scale.x, terrain_scale.y, terrain_scale.z / 256.0f};
-  } else {
-    return {128.0f, 128.0f, 76.0f / 256.0f};
   }
+
+  return {128.0f, 128.0f, 76.0f / 256.0f};
 }
 
 auto TerrainInfoActor::bounding_box() const -> Box {

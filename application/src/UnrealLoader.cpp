@@ -10,17 +10,23 @@ UnrealLoader::UnrealLoader(const std::filesystem::path &root_path)
                         unreal::SearchConfig{"Textures", "utx"},
                         unreal::SearchConfig{"SysTextures", "utx"}}} {}
 
-auto UnrealLoader::load_map(const std::string &name) const
-    -> std::vector<Entity> {
+auto UnrealLoader::load_map(const std::string &name, glm::vec3 &position) const
+    -> std::vector<Entity<EntityMesh>> {
 
-  std::vector<Entity> entities;
+  std::vector<Entity<EntityMesh>> entities;
 
-  const auto package = m_package_loader.load_package(name).value();
+  const auto optional_package = m_package_loader.load_package(name);
+
+  if (!optional_package.has_value()) {
+    return {};
+  }
+
+  const auto package = optional_package.value();
 
   // Terrain.
   const auto terrain = load_terrain(package);
 
-  const auto position = to_vec3(terrain->position());
+  position = to_vec3(terrain->position());
   const auto scale = to_vec3(terrain->scale());
   const auto bounding_box =
       math::Box{to_vec3(terrain->bounding_box().min) * scale + position,
@@ -85,7 +91,7 @@ auto UnrealLoader::load_side_terrain(int x, int y) const
     return nullptr;
   }
 
-  const auto terrain = load_terrain(package.value());
+  auto terrain = load_terrain(package.value());
 
   if (terrain->broken_scale()) {
     return nullptr;
@@ -95,16 +101,17 @@ auto UnrealLoader::load_side_terrain(int x, int y) const
 }
 
 auto UnrealLoader::load_terrain_entities(
-    const unreal::TerrainInfoActor &terrain) const -> std::vector<Entity> {
+    const unreal::TerrainInfoActor &terrain) const
+    -> std::vector<Entity<EntityMesh>> {
 
-  std::vector<Entity> entities;
+  std::vector<Entity<EntityMesh>> entities;
 
   const auto &mips = terrain.terrain_map->mips;
 
   const auto width = terrain.terrain_map->u_size;
   const auto height = terrain.terrain_map->v_size;
 
-  const auto mesh = std::make_shared<Mesh>();
+  const auto mesh = std::make_shared<EntityMesh>();
 
   {
     const auto position = to_vec3(terrain.position());
@@ -297,7 +304,7 @@ auto UnrealLoader::load_terrain_entities(
   surface.type = SURFACE_TERRAIN;
   surface.index_offset = 0;
   surface.index_count = mesh->indices.size();
-  surface.material.color = {1.0f, 1.0f, 1.0f};
+  surface.material.color = {0.8f, 0.8f, 0.8f};
 
   mesh->surfaces.push_back(std::move(surface));
 
@@ -316,9 +323,9 @@ auto UnrealLoader::load_terrain_entities(
 
 auto UnrealLoader::load_mesh_actor_entities(
     const unreal::Package &package, const math::Box &map_bounding_box) const
-    -> std::vector<Entity> {
+    -> std::vector<Entity<EntityMesh>> {
 
-  std::vector<Entity> entities;
+  std::vector<Entity<EntityMesh>> entities;
 
   std::vector<std::shared_ptr<unreal::StaticMeshActor>> mesh_actors;
   package.load_objects("StaticMeshActor", mesh_actors);
@@ -349,7 +356,7 @@ auto UnrealLoader::load_mesh_actor_entities(
     }
 
     if (cached_mesh == m_mesh_cache.end()) {
-      const auto mesh = std::make_shared<Mesh>();
+      const auto mesh = std::make_shared<EntityMesh>();
       cached_mesh = m_mesh_cache.insert({mesh_name, mesh}).first;
 
       // Bounding box.
@@ -427,9 +434,9 @@ auto UnrealLoader::load_mesh_actor_entities(
 
 auto UnrealLoader::load_bsp_entities(const unreal::Package &package,
                                      const math::Box &map_bounding_box) const
-    -> std::vector<Entity> {
+    -> std::vector<Entity<EntityMesh>> {
 
-  std::vector<Entity> entities;
+  std::vector<Entity<EntityMesh>> entities;
 
   std::vector<std::shared_ptr<unreal::Level>> levels;
   package.load_objects("Level", levels);
@@ -448,13 +455,13 @@ auto UnrealLoader::load_bsp_entities(const unreal::Package &package,
 
 auto UnrealLoader::load_model_entity(const unreal::Model &model,
                                      const math::Box &map_bounding_box) const
-    -> std::optional<Entity> {
+    -> std::optional<Entity<EntityMesh>> {
 
   if (model.points.empty()) {
     return {};
   }
 
-  const auto mesh = std::make_shared<Mesh>();
+  const auto mesh = std::make_shared<EntityMesh>();
 
   for (const auto &node : model.nodes) {
     if ((node.flags & unreal::NF_Passable) != 0) {
@@ -530,7 +537,7 @@ auto UnrealLoader::load_model_entity(const unreal::Model &model,
 }
 
 void UnrealLoader::place_actor(const unreal::Actor &actor,
-                               Entity &entity) const {
+                               Entity<EntityMesh> &entity) const {
 
   entity.position = to_vec3(actor.position());
   entity.rotation = to_vec3(actor.rotation.vector());
@@ -553,12 +560,12 @@ auto UnrealLoader::collides(const unreal::StaticMeshActor &mesh_actor,
 
 auto UnrealLoader::bounding_box_mesh(std::uint64_t type,
                                      const math::Box &box) const
-    -> std::shared_ptr<Mesh> {
+    -> std::shared_ptr<EntityMesh> {
 
   const auto &min = box.min();
   const auto &max = box.max();
 
-  auto mesh = std::make_shared<Mesh>();
+  auto mesh = std::make_shared<EntityMesh>();
   mesh->bounding_box = box;
 
   mesh->vertices.push_back(
@@ -618,13 +625,9 @@ auto UnrealLoader::should_skip_bsp_node(const unreal::Model &model,
   return false;
 }
 
-auto UnrealLoader::should_skip_entity(const Entity &entity,
-                                      const math::Box &map_bounding_box) const
-    -> bool {
+auto UnrealLoader::should_skip_entity(
+    const Entity<EntityMesh> &entity,
+    const math::Box & /*map_bounding_box*/) const -> bool {
 
-  if (entity.position == glm::vec3{0.0f}) {
-    return true;
-  }
-
-  return false;
+  return entity.position == glm::vec3{0.0f};
 }

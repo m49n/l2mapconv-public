@@ -9,7 +9,6 @@ CameraSystem::CameraSystem(RenderingContext &rendering_context,
 
 void CameraSystem::frame_begin(Timestep frame_time) {
   const auto rotation_speed = 0.002f;
-  //  const auto rolling_speed = 1.25f * frame_time.seconds();
   const auto translation_speed = 3000.0f * frame_time.seconds();
 
   const auto &mouse = m_window_context.mouse;
@@ -20,15 +19,6 @@ void CameraSystem::frame_begin(Timestep frame_time) {
     // Rotation.
     camera.rotate(-mouse.position.dx * rotation_speed, camera.up());
     camera.rotate(-mouse.position.dy * rotation_speed, camera.right());
-
-    // Rolling.
-    //  if (keyboard.q) {
-    //    camera.rotate(-rolling_speed, camera.forward());
-    //  }
-
-    //  if (keyboard.e) {
-    //    camera.rotate(rolling_speed, camera.forward());
-    //  }
   }
 
   // Translation.

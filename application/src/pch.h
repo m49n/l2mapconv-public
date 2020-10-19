@@ -13,16 +13,22 @@
 #include <rendering/Context.h>
 #include <rendering/Entity.h>
 #include <rendering/EntityMesh.h>
+#include <rendering/EntityRenderer.h>
 #include <rendering/EntityShader.h>
 #include <rendering/EntityTree.h>
 #include <rendering/ErrorHandling.h>
 #include <rendering/FrameSettings.h>
+#include <rendering/GeodataBlock.h>
+#include <rendering/GeodataMesh.h>
 #include <rendering/Material.h>
 #include <rendering/MeshSurface.h>
-#include <rendering/Renderer.h>
 #include <rendering/ShaderLoader.h>
 #include <rendering/Texture.h>
+#include <rendering/TextureLoader.h>
 #include <rendering/Vertex.h>
+
+#include <geodata/Geodata.h>
+#include <geodata/Loader.h>
 
 #include <utils/Assert.h>
 #include <utils/Log.h>
@@ -33,8 +39,10 @@
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtx/string_cast.hpp>
+
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
 

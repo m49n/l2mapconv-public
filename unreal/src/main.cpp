@@ -3,9 +3,9 @@
 #include <unreal/Actor.h>
 #include <unreal/Level.h>
 #include <unreal/Material.h>
+#include <unreal/PackageLoader.h>
 #include <unreal/StaticMesh.h>
 #include <unreal/Terrain.h>
-#include <unreal/PackageLoader.h>
 
 void load_package(const unreal::PackageLoader &package_loader,
                   const std::string &package_name);

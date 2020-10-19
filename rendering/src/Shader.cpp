@@ -5,22 +5,30 @@
 namespace rendering {
 
 Shader::Shader(Context &context, const std::string &vertex,
-               const std::string &fragment)
+               const std::string &fragment, const std::string &geometry)
     : m_context{context} {
 
-  const auto vertex_shader = compile(vertex, GL_VERTEX_SHADER);
-  const auto fragment_shader = compile(fragment, GL_FRAGMENT_SHADER);
+  auto shaders = std::vector{compile(vertex, GL_VERTEX_SHADER),
+                             compile(fragment, GL_FRAGMENT_SHADER)};
+
+  if (!geometry.empty()) {
+    shaders.push_back(compile(geometry, GL_GEOMETRY_SHADER));
+  }
 
   GL_CALL(m_program = glCreateProgram());
-  GL_CALL(glAttachShader(m_program, vertex_shader));
-  GL_CALL(glAttachShader(m_program, fragment_shader));
+
+  for (const auto shader : shaders) {
+    GL_CALL(glAttachShader(m_program, shader));
+  }
+
   GL_CALL(glLinkProgram(m_program));
 
   check_for_errors(m_program);
   GL_CALL(glValidateProgram(m_program));
 
-  GL_CALL(glDeleteShader(vertex_shader));
-  GL_CALL(glDeleteShader(fragment_shader));
+  for (const auto shader : shaders) {
+    GL_CALL(glDeleteShader(shader));
+  }
 }
 
 Shader::~Shader() {
@@ -49,9 +57,6 @@ void Shader::bind() const {
   if (m_context.shader.program != m_program) {
     GL_CALL(glUseProgram(m_program));
     m_context.shader.program = m_program;
-
-    utils::Log(utils::LOG_INFO, "Rendering")
-        << "Shader bound: " << m_program << std::endl;
   }
 }
 

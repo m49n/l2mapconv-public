@@ -22,6 +22,7 @@ UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
   m_ui_context.input.terrain = true;
   m_ui_context.input.static_meshes = true;
   m_ui_context.input.csg = true;
+  m_ui_context.input.geodata = true;
 }
 
 UISystem::~UISystem() {
@@ -42,9 +43,9 @@ void UISystem::frame_begin(Timestep frame_time) {
   const auto &camera_position = m_rendering_context.camera.position();
 
   ImGui::Begin("Rendering", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-  ImGui::Text("Frame time: %f", frame_time.seconds());
+  ImGui::Text("CPU frame time: %f", frame_time.seconds());
   ImGui::Text("Draws: %d", m_ui_context.output.draws);
-  ImGui::Text("Camera:");
+  ImGui::Text("Camera");
   ImGui::Text("\tx: %d", static_cast<int>(camera_position.x));
   ImGui::Text("\ty: %d", static_cast<int>(camera_position.y));
   ImGui::Text("\tz: %d", static_cast<int>(camera_position.z));
@@ -54,6 +55,7 @@ void UISystem::frame_begin(Timestep frame_time) {
   ImGui::Checkbox("Static Meshes", &m_ui_context.input.static_meshes);
   ImGui::Checkbox("CSG", &m_ui_context.input.csg);
   ImGui::Checkbox("Bounding Boxes", &m_ui_context.input.bounding_boxes);
+  ImGui::Checkbox("Geodata", &m_ui_context.input.geodata);
   ImGui::End();
 }
 

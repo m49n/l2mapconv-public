@@ -9,12 +9,15 @@ add_library(${PROJECT_NAME}
     src/Shader.cpp
     src/Camera.cpp
     src/Texture.cpp
+    src/TextureLoader.cpp
 
     src/EntityMesh.cpp
     src/EntityShader.cpp
     src/Entity.cpp
     src/EntityTree.cpp
-    src/Renderer.cpp
+    src/EntityRenderer.cpp
+
+    src/GeodataMesh.cpp
 
     src/ShaderLoader.cpp
 )
@@ -28,6 +31,7 @@ target_link_libraries(${PROJECT_NAME}
 
     PRIVATE libglew_static
     PRIVATE glm
+    PRIVATE stb
 )
 
 # Compiler options

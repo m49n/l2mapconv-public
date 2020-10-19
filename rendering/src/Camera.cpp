@@ -6,6 +6,8 @@ namespace rendering {
 
 void Camera::translate(const glm::vec3 &direction) { m_position += direction; }
 
+void Camera::set_position(const glm::vec3 &position) { m_position = position; }
+
 void Camera::rotate(float angle, const glm::vec3 &axis) {
   m_orientation = glm::normalize(glm::angleAxis(angle, axis) * m_orientation);
 }
@@ -20,10 +22,7 @@ auto Camera::right() const -> glm::vec3 {
   return m_orientation * glm::vec3{1.0f, 0.0f, 0.0f};
 }
 
-auto Camera::up() const -> glm::vec3 {
-  //  return m_orientation * glm::vec3{0.0f, 1.0f, 0.0f};
-  return {0.0f, 1.0f, 0.0f};
-}
+auto Camera::up() const -> glm::vec3 { return m_up; }
 
 auto Camera::view_matrix() const -> glm::mat4 {
   return glm::translate(glm::mat4_cast(glm::conjugate(m_orientation)),

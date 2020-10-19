@@ -14,7 +14,7 @@ namespace rendering {
 class Shader : public utils::NonCopyable {
 public:
   explicit Shader(Context &context, const std::string &vertex,
-                  const std::string &fragment);
+                  const std::string &fragment, const std::string &geometry);
 
   virtual ~Shader();
 

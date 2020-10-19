@@ -13,7 +13,8 @@ namespace rendering {
 
 class Mesh : public utils::NonCopyable {
 public:
-  explicit Mesh(Context &context, const VertexBuffer &vertex_buffer,
+  explicit Mesh(Context &context, std::size_t vertex_count,
+                const std::vector<VertexBuffer> &vertex_buffers,
                 const std::vector<std::uint32_t> &indices);
 
   virtual ~Mesh();
@@ -23,13 +24,14 @@ public:
 
   auto index_count() const -> std::size_t;
 
-  void draw() const;
-  void draw(std::size_t index_offset, std::size_t index_count_) const;
+  void draw(unsigned int mode, std::size_t instances,
+            std::size_t index_offset = 0, std::size_t index_count_ = 0) const;
 
 private:
   Context &m_context;
-  unsigned int m_vao;
+  std::size_t m_vertex_count;
   std::size_t m_index_count;
+  unsigned int m_vao;
 };
 
 } // namespace rendering

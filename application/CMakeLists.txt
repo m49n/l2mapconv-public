@@ -13,6 +13,7 @@ add_executable(${PROJECT_NAME}
     src/LoadingSystem.cpp
 
     src/UnrealLoader.cpp
+    src/GeodataLoader.cpp
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE src/pch.h)

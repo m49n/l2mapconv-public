@@ -5,7 +5,7 @@
 namespace rendering {
 
 Texture::Texture(Context &context, Format format, int width, int height,
-                 const std::vector<std::uint8_t> &data)
+                 const unsigned char *data)
     : m_context{context}, m_texture{0} {
 
   GL_CALL(glGenTextures(1, &m_texture));
@@ -21,13 +21,13 @@ Texture::Texture(Context &context, Format format, int width, int height,
   switch (format) {
   case Format::RGBA: {
     GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
-                         GL_UNSIGNED_BYTE, &data.front()));
+                         GL_UNSIGNED_BYTE, data));
     break;
   }
   case Format::DXT1: {
-    GL_CALL(glCompressedTexImage2D(
-        GL_TEXTURE_2D, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, width, height, 0,
-        (width * height) / 2, &data.front()));
+    GL_CALL(glCompressedTexImage2D(GL_TEXTURE_2D, 0,
+                                   GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, width,
+                                   height, 0, (width * height) / 2, data));
     break;
   }
   }

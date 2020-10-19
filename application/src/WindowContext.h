@@ -30,7 +30,6 @@ struct WindowContext {
 
   struct {
     bool w, a, s, d;
-    bool q, e;
     bool m;
     bool shift;
   } keyboard;

@@ -82,7 +82,7 @@ struct ExtractArrayHelper<ExtractSizeAsT, llvm::ulittle8_t, StoreToT> {
 
     if (size > 0) {
       static_cast<std::istream &>(input_stream)
-          .read(reinterpret_cast<char *>(&store_to.front()), size);
+          .read(reinterpret_cast<char *>(store_to.data()), size);
     }
 
     return input_stream;
@@ -109,7 +109,7 @@ struct ExtractArrayHelper<
 
     if (size > 0) {
       static_cast<std::istream &>(input_stream)
-          .read(reinterpret_cast<char *>(&store_to.front()),
+          .read(reinterpret_cast<char *>(store_to.data()),
                 size * sizeof(PESIT));
     }
 

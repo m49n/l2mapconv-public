@@ -25,7 +25,7 @@ public:
   auto min() const -> const glm::vec3 &;
   auto max() const -> const glm::vec3 &;
 
-  auto valid() const -> bool;
+  auto is_zero() const -> bool;
   auto contains(const glm::vec3 &point) const -> bool;
 
   auto operator+=(const glm::vec3 &point) -> Box &;

@@ -3,6 +3,8 @@ project(geodata)
 
 add_library(${PROJECT_NAME}
     src/pch.cpp
+    src/L2JSerializer.cpp
+    src/Loader.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
@@ -10,6 +12,7 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE src/pch.h)
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE utils
+    PRIVATE math
 )
 
 # Compiler options

@@ -85,7 +85,7 @@ void PropertyExtractor::deserialize(Property &property) const {
              "Unreal", "Invalid property array");
     } else {
       property.data_value.resize(array_size);
-      input.read(reinterpret_cast<char *>(&property.data_value.front()),
+      input.read(reinterpret_cast<char *>(property.data_value.data()),
                  array_size);
     }
 

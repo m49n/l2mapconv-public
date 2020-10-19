@@ -6,7 +6,7 @@
 #include "UIContext.h"
 #include "WindowContext.h"
 
-#include <rendering/Renderer.h>
+#include <rendering/EntityRenderer.h>
 
 class RenderingSystem : public System {
 public:
@@ -21,7 +21,9 @@ private:
   RenderingContext &m_rendering_context;
   WindowContext &m_window_context;
   UIContext &m_ui_context;
-  rendering::Renderer m_renderer;
 
-  auto create_renderer() const -> rendering::Renderer;
+  rendering::EntityRenderer m_entity_renderer;
+
+  void resize() const;
+  void clear() const;
 };

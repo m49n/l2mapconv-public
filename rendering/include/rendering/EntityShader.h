@@ -1,21 +1,16 @@
 #pragma once
 
-#include "Context.h"
 #include "Shader.h"
 
 #include <utils/NonCopyable.h>
 
 #include <glm/glm.hpp>
 
-#include <string>
-
 namespace rendering {
 
 class EntityShader : public utils::NonCopyable {
 public:
-  explicit EntityShader(Context &context, const std::string &vertex,
-                        const std::string &fragment)
-      : m_shader{context, vertex, fragment} {}
+  explicit EntityShader(Shader &&shader) : m_shader{std::move(shader)} {}
 
   void load_projection_matrix(const glm::mat4 &projection) const;
   void load_view_matrix(const glm::mat4 &view) const;

@@ -2,8 +2,7 @@
 
 #include "Context.h"
 #include "EntityShader.h"
-
-#include <utils/NonCopyable.h>
+#include "Shader.h"
 
 #include <filesystem>
 #include <memory>
@@ -12,12 +11,12 @@
 
 namespace rendering {
 
-class ShaderLoader : public utils::NonCopyable {
+class ShaderLoader {
 public:
   explicit ShaderLoader(Context &context,
                         const std::filesystem::path &root_path);
 
-  auto load_shader(const std::string &name) const
+  auto load_entity_shader(const std::string &name) const
       -> std::shared_ptr<EntityShader>;
 
 private:
@@ -25,9 +24,12 @@ private:
   const std::filesystem::path m_root_path;
 
   mutable std::unordered_map<std::string, std::shared_ptr<EntityShader>>
-      m_shaders;
+      m_entity_shaders;
 
-  auto read_file(const std::filesystem::path &path) const -> std::string;
+  auto load_shader(const std::string &name) const -> Shader;
+
+  auto read_file(const std::filesystem::path &path, bool optional = false) const
+      -> std::string;
 };
 
 } // namespace rendering

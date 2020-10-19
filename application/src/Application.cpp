@@ -11,19 +11,20 @@
 #include "WindowContext.h"
 #include "WindowSystem.h"
 
-#include "GLFW/glfw3.h"
-
 Application::Application(const std::vector<std::string> &arguments)
     : m_arguments{arguments} {}
 
 auto Application::run() -> int {
-  if (m_arguments.empty()) {
+  if (m_arguments.size() < 2) {
     std::cout << "Usage:" << std::endl;
     std::cout << "\tl2mapconv <L2 root path> [<map package name>]" << std::endl;
     return EXIT_FAILURE;
   }
 
   const auto root_path = m_arguments[0];
+
+  auto maps = m_arguments;
+  maps.erase(maps.begin());
 
   // Make sure to remove systems & contexts before OpenGL context will be
   // destroyed.
@@ -47,7 +48,7 @@ auto Application::run() -> int {
     systems.push_back(std::make_unique<CameraSystem>(
         rendering_context, window_context, ui_context));
     systems.push_back(
-        std::make_unique<LoadingSystem>(rendering_context, root_path));
+        std::make_unique<LoadingSystem>(rendering_context, root_path, maps));
 
     for (const auto &system : systems) {
       system->start();

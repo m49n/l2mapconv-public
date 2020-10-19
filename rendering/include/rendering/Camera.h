@@ -2,8 +2,6 @@
 
 #include "Context.h"
 
-#include <utils/NonCopyable.h>
-
 #include <math/Frustum.h>
 
 #include <glm/glm.hpp>
@@ -11,15 +9,15 @@
 
 namespace rendering {
 
-class Camera : public utils::NonCopyable {
+class Camera {
 public:
   explicit Camera(Context &context, float fov, float near,
                   const glm::vec3 &position)
       : m_context{context}, m_fov{fov}, m_near{near}, m_position{position},
-        m_orientation{glm::quatLookAt(glm::vec3{0.0f, 0.0f, -1.0f},
-                                      glm::vec3{0.0f, 1.0f, 0.0f})} {}
+        m_orientation{glm::quatLookAt({0.0f, 1.0f, 0.0f}, m_up)} {}
 
   void translate(const glm::vec3 &direction);
+  void set_position(const glm::vec3 &position);
   void rotate(float angle, const glm::vec3 &axis);
 
   auto position() const -> const glm::vec3 &;
@@ -34,6 +32,8 @@ public:
   auto frustum() const -> math::Frustum;
 
 private:
+  const glm::vec3 m_up = {0.0f, 0.0f, 1.0f};
+
   Context &m_context;
 
   float m_fov;

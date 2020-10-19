@@ -3,8 +3,6 @@
 #include "Archive.h"
 #include "NameTable.h"
 
-#include <utils/NonCopyable.h>
-
 #include <filesystem>
 #include <sstream>
 #include <string>
@@ -22,7 +20,7 @@ struct SearchConfig {
       : directory{directory}, extension{extension} {}
 };
 
-class ArchiveLoader : public utils::NonCopyable {
+class ArchiveLoader {
 public:
   explicit ArchiveLoader(const std::filesystem::path &root_path,
                          const std::vector<SearchConfig> &configs)

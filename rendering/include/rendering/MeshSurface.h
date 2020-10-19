@@ -11,15 +11,15 @@ class EntityMesh;
 
 class MeshSurface {
 public:
-  std::uint64_t type;
-  std::size_t index_offset;
-  std::size_t index_count;
-  Material material;
+  const std::uint64_t type;
+  const Material material;
+  const std::size_t index_offset;
+  const std::size_t index_count;
 
-  explicit MeshSurface(std::uint64_t type, std::size_t index_offset,
-                       std::size_t index_count, const Material &material)
-      : type{type}, index_offset{index_offset},
-        index_count{index_count}, material{material}, m_mesh{nullptr} {}
+  explicit MeshSurface(std::uint64_t type, const Material &material,
+                       std::size_t index_offset, std::size_t index_count)
+      : type{type}, material{material}, index_offset{index_offset},
+        index_count{index_count}, m_mesh{nullptr} {}
 
   friend class EntityMesh;
 

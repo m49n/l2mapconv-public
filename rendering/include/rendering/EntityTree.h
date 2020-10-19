@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DrawableMesh.h"
 #include "Entity.h"
 #include "EntityShader.h"
 #include "MeshSurface.h"
@@ -22,7 +23,7 @@ public:
       std::uint64_t,
       std::map<std::shared_ptr<const EntityShader>,
                std::map<std::shared_ptr<const Texture>,
-                        std::map<std::shared_ptr<const EntityMesh>,
+                        std::map<std::shared_ptr<const DrawableMesh>,
                                  std::vector<std::pair<
                                      const Entity *, const MeshSurface *>>>>>>;
 

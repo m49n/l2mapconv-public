@@ -116,7 +116,7 @@ struct Mipmap {
   std::int8_t u_bits, v_bits;     // Power of two tile bits.
 
   template <typename T> auto as() const -> const T * {
-    return reinterpret_cast<const T *>(&data.front());
+    return reinterpret_cast<const T *>(data.data());
   }
 
   friend auto operator>>(Archive &archive, Mipmap &mipmap) -> Archive &;

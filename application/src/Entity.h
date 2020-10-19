@@ -1,5 +1,9 @@
 #pragma once
 
+#include <rendering/Texture.h>
+
+#include <geodata/Geodata.h>
+
 #include <math/Box.h>
 #include <math/Transformation.h>
 
@@ -16,17 +20,12 @@ enum SurfaceType {
   SURFACE_STATIC_MESH = 4,
   SURFACE_CSG = 8,
   SURFACE_BOUNDING_BOX = 16,
-};
-
-struct Texture {
-  int width;
-  int height;
-  std::vector<std::uint8_t> texels;
+  SURFACE_GEODATA = 32,
 };
 
 struct Material {
   glm::vec3 color;
-  std::shared_ptr<Texture> texture;
+  std::shared_ptr<rendering::Texture> texture;
 };
 
 struct Surface {
@@ -42,24 +41,41 @@ struct Vertex {
   glm::vec2 uv;
 };
 
-struct Mesh {
+struct EntityMesh {
   std::vector<Vertex> vertices;
   std::vector<std::uint32_t> indices;
   std::vector<Surface> surfaces;
+  std::vector<glm::mat4> model_matrices;
   math::Box bounding_box;
 };
 
-struct Entity {
-  std::shared_ptr<Mesh> mesh;
+struct GeodataMesh {
+  std::vector<geodata::Block> blocks;
+  Surface surface;
+};
+
+template <typename T> struct Entity {
+  std::shared_ptr<T> mesh;
   glm::vec3 position;
   glm::vec3 rotation;
   glm::vec3 scale;
   bool wireframe;
 
-  explicit Entity(std::shared_ptr<Mesh> mesh)
+  explicit Entity(std::shared_ptr<T> mesh)
       : mesh{mesh}, position{}, rotation{}, scale{1.0f}, wireframe{false} {}
 
   auto model_matrix() const -> glm::mat4 {
-    return math::transformation_matrix(position, rotation, scale);
+    //    // Swap Y-up with Z-up.
+    //    auto identity = glm::scale(
+    //        glm::mat4{
+    //            {1.0f, 0.0f, 0.0f, 0.0f},
+    //            {0.0f, 0.0f, 1.0f, 0.0f},
+    //            {0.0f, 1.0f, 0.0f, 0.0f},
+    //            {0.0f, 0.0f, 0.0f, 1.0f},
+    //        },
+    //        {1.0f, -1.0f, 1.0f});
+
+    return math::transformation_matrix(glm::mat4{1.0f}, position, rotation,
+                                       scale);
   }
 };
