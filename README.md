@@ -11,7 +11,7 @@
     <img src="assets/geo_giran.png" width="400" />
 </p>
 
-L2 Geodata generator... someday.
+L2 geodata generator... someday.
 
 Tested with clients:
 
@@ -21,6 +21,11 @@ Tested with clients:
 ## Features
 
 - L2J geodata preview
+
+## Todo
+
+- [ ] Blocking volumes import
+- [ ] Geodata generation
 
 ## Usage
 
@@ -32,14 +37,9 @@ Tested with clients:
 ```
 3. Use WASD, right mouse button and Shift to control camera and speed.
 
-## Todo
-
-- [ ] Blocking volumes import
-- [ ] Geodata generation
-
 ## Building
 
-Tested environment:
+Tested on environment:
 
 - Windows 10
 - MVS 2019
