@@ -27,8 +27,8 @@ Tested with clients:
 1. *Optional*. Place L2J geodata files in the `geodata` directory.
 2. Run `l2mapconv` providing path to the client and map names:
 
-```
-l2mapconv.exe C:\\Path\\To\\L2 19_21 20_21
+```bash
+> l2mapconv.exe "C:/Path/To/L2" 19_21 20_21
 ```
 3. Use WASD, right mouse button and Shift to control camera and speed.
 
@@ -36,6 +36,24 @@ l2mapconv.exe C:\\Path\\To\\L2 19_21 20_21
 
 - [ ] Blocking volumes import
 - [ ] Geodata generation
+
+## Building
+
+Tested environment:
+
+- Windows 10
+- MVS 2019
+- Clang 10
+- Cmake 3.17
+- Ninja 1.10
+
+```bash
+> git clone git@github.com:madyanov/l2mapconv-public.git
+> cd l2mapconv-public
+> cmake -H. -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang.exe" -DCMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang.exe"
+> cd build
+> ninja
+```
 
 ## Credits
 
