@@ -10,7 +10,8 @@ UnrealLoader::UnrealLoader(const std::filesystem::path &root_path)
                         unreal::SearchConfig{"Textures", "utx"},
                         unreal::SearchConfig{"SysTextures", "utx"}}} {}
 
-auto UnrealLoader::load_map(const std::string &name, glm::vec3 &position) const
+auto UnrealLoader::load_map(const std::string &name, glm::vec3 &position,
+                            math::Box &bounding_box) const
     -> std::vector<Entity<EntityMesh>> {
 
   std::vector<Entity<EntityMesh>> entities;
@@ -28,7 +29,7 @@ auto UnrealLoader::load_map(const std::string &name, glm::vec3 &position) const
 
   position = to_vec3(terrain->position());
   const auto scale = to_vec3(terrain->scale());
-  const auto bounding_box =
+  bounding_box =
       math::Box{to_vec3(terrain->bounding_box().min) * scale + position,
                 to_vec3(terrain->bounding_box().max) * scale + position};
 
@@ -311,7 +312,7 @@ auto UnrealLoader::load_terrain_entities(
   surface.index_count = mesh->indices.size();
   surface.material.color = {0.85f, 0.85f, 0.85f};
 
-  mesh->surfaces.push_back(std::move(surface));
+  mesh->surfaces.push_back(surface);
 
   // Terrain entity.
   Entity entity{mesh};
@@ -366,10 +367,16 @@ auto UnrealLoader::load_mesh_actor_entities(
       // Bounding box.
       mesh->bounding_box = bounding_box;
 
+      ASSERT(!unreal_mesh->uv_stream.empty(), "App",
+             "Surface doesn't have texture coordinates");
+      auto uvs = unreal_mesh->uv_stream[0].uvs.begin();
+
       // Vertices.
       for (const auto &vertex : unreal_mesh->vertex_stream.vertices) {
-        mesh->vertices.push_back(
-            {to_vec3(vertex.location), to_vec3(vertex.normal), {0.0f, 0.0f}});
+        mesh->vertices.push_back({to_vec3(vertex.location),
+                                  to_vec3(vertex.normal),
+                                  {uvs->u, uvs->v}});
+        ++uvs;
       }
 
       // Surfaces.
@@ -411,7 +418,7 @@ auto UnrealLoader::load_mesh_actor_entities(
           surface.material.color = {0.7f, 1.0f, 0.7f};
         }
 
-        mesh->surfaces.push_back(std::move(surface));
+        mesh->surfaces.push_back(surface);
       }
     }
 
@@ -459,8 +466,9 @@ auto UnrealLoader::load_volume_entities(const unreal::Package &package,
 
   std::vector<Entity<EntityMesh>> entities;
 
-  std::vector<std::shared_ptr<unreal::BlockingVolumeActor>> volumes;
+  std::vector<std::shared_ptr<unreal::VolumeActor>> volumes;
   package.load_objects("BlockingVolume", volumes);
+  //  package.load_objects("WaterVolume", volumes);
 
   for (const auto &volume : volumes) {
     if (!volume->brush) {
@@ -559,7 +567,7 @@ auto UnrealLoader::load_model_entity(const unreal::Model &model,
   surface.index_count = mesh->indices.size();
   surface.material.color = {1.0f, 1.0f, 0.7f};
 
-  mesh->surfaces.push_back(std::move(surface));
+  mesh->surfaces.push_back(surface);
 
   return Entity{mesh};
 }
@@ -631,7 +639,7 @@ auto UnrealLoader::bounding_box_mesh(std::uint64_t type,
   surface.index_offset = 0;
   surface.index_count = mesh->indices.size();
   surface.material.color = {1.0f, 0.0f, 1.0f};
-  mesh->surfaces.push_back(std::move(surface));
+  mesh->surfaces.push_back(surface);
 
   return mesh;
 }

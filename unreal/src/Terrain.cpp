@@ -42,14 +42,16 @@ auto TerrainInfoActor::set_property(const Property &property) -> bool {
   if (property.name == "Layers") {
     TerrainLayer layer{};
 
-    layer.texture.from_property(property.find("Texture"), archive);
-    layer.alpha_map.from_property(property.find("AlphaMap"), archive);
-    layer.u_scale = property.find("UScale").float_value;
-    layer.v_scale = property.find("VScale").float_value;
-    layer.u_pan = property.find("UPan").float_value;
-    layer.v_pan = property.find("VPan").float_value;
-    layer.texture_map_axis = property.find("TextureMapAxis").uint8_t_value;
-    layer.texture_rotation = property.find("TextureRotation").float_value;
+    layer.texture.from_property(property.subproperty("Texture"), archive);
+    layer.alpha_map.from_property(property.subproperty("AlphaMap"), archive);
+    layer.u_scale = property.subproperty("UScale").float_value;
+    layer.v_scale = property.subproperty("VScale").float_value;
+    layer.u_pan = property.subproperty("UPan").float_value;
+    layer.v_pan = property.subproperty("VPan").float_value;
+    layer.texture_map_axis =
+        property.subproperty("TextureMapAxis").uint8_t_value;
+    layer.texture_rotation =
+        property.subproperty("TextureRotation").float_value;
 
     layers.push_back(std::move(layer));
 

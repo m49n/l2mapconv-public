@@ -18,8 +18,6 @@ public:
   ObjectRef<Material> default_material;
 
   explicit Material(Archive &archive) : Object{archive} {}
-
-  virtual void deserialize() override;
 };
 
 class Modifier : public Material {
@@ -204,7 +202,7 @@ enum OutputBlending {
 class Shader : public RenderedMaterial {
 public:
   std::uint8_t output_blending;
-  ObjectRef<Texture> diffuse;
+  ObjectRef<Texture, ObjectRefConstraint::Optional> diffuse;
   ObjectRef<Texture> opacity;
   ObjectRef<Texture> specular;
   ObjectRef<Texture> specular_mask;

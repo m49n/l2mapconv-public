@@ -1,9 +1,13 @@
 #pragma once
 
+#include "Entity.h"
 #include "RenderingContext.h"
 #include "System.h"
 
+#include <rendering/Texture.h>
+
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -15,4 +19,7 @@ public:
 
 private:
   RenderingContext &m_rendering_context;
+
+  auto load_texture(const Texture &texture)
+      -> std::shared_ptr<rendering::Texture>;
 };

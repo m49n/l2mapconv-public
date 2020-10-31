@@ -73,7 +73,7 @@ struct StaticMeshIndexStream {
 };
 
 struct StaticMeshMaterial {
-  ObjectRef<Material> material;
+  ObjectRef<Material, ObjectRefConstraint::Optional> material;
   bool enable_collision;
 };
 

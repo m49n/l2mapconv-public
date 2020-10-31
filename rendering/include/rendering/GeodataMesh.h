@@ -18,7 +18,8 @@ class GeodataMesh : public utils::NonCopyable, public DrawableMesh {
 public:
   explicit GeodataMesh(Context &context,
                        const std::vector<GeodataBlock> &blocks,
-                       const MeshSurface &surface);
+                       const MeshSurface &surface,
+                       const math::Box &bounding_box);
 
   virtual auto surfaces() const -> const std::vector<MeshSurface> & override;
   virtual auto bounding_box() const -> const math::Box & override;

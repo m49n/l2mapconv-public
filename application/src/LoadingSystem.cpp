@@ -22,12 +22,18 @@ LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
 
   std::unordered_map<std::shared_ptr<EntityMesh>,
                      std::shared_ptr<rendering::EntityMesh>>
-      mesh_cache;
+      entity_mesh_cache;
+
+  std::unordered_map<const unsigned char *, std::shared_ptr<rendering::Texture>>
+      texture_cache;
 
   for (const auto &map : maps) {
+    // Load entities.
     glm::vec3 map_position{};
+    math::Box map_bounding_box{};
 
-    const auto map_entities = unreal_loader.load_map(map, map_position);
+    const auto map_entities =
+        unreal_loader.load_map(map, map_position, map_bounding_box);
 
     // Set initial camera position.
     if (!map_entities.empty()) {
@@ -36,24 +42,39 @@ LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
     }
 
     for (const auto &entity : map_entities) {
-      auto cached_mesh = mesh_cache.find(entity.mesh);
+      // Load mesh if needed.
+      auto cached_mesh = entity_mesh_cache.find(entity.mesh);
 
-      if (cached_mesh == mesh_cache.end()) {
+      if (cached_mesh == entity_mesh_cache.end()) {
         std::vector<rendering::MeshSurface> surfaces;
 
         for (const auto &surface : entity.mesh->surfaces) {
-          surfaces.emplace_back(
-              surface.type,
-              rendering::Material{surface.material.color, nullptr},
-              surface.index_offset, surface.index_count);
+          // Load texture if needed.
+          auto cached_texture =
+              texture_cache.find(surface.material.texture.data);
+
+          if (cached_texture == texture_cache.end()) {
+            const auto texture = load_texture(surface.material.texture);
+            cached_texture =
+                texture_cache.insert({surface.material.texture.data, texture})
+                    .first;
+          }
+
+          // Add surface.
+          surfaces.emplace_back(surface.type,
+                                rendering::Material{surface.material.color,
+                                                    cached_texture->second},
+                                surface.index_offset, surface.index_count);
         }
 
+        // Add vertices.
         std::vector<rendering::Vertex> vertices;
 
         for (const auto &vertex : entity.mesh->vertices) {
           vertices.push_back({vertex.position, vertex.normal, vertex.uv});
         }
 
+        // Create mesh.
         const std::vector<glm::mat4> &model_matrices =
             entity.mesh->model_matrices.empty() ? std::vector{glm::mat4{1.0f}}
                                                 : entity.mesh->model_matrices;
@@ -62,18 +83,22 @@ LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
             m_rendering_context.context, vertices, entity.mesh->indices,
             surfaces, model_matrices, entity.mesh->bounding_box);
 
-        cached_mesh = mesh_cache.insert({entity.mesh, mesh}).first;
+        cached_mesh = entity_mesh_cache.insert({entity.mesh, mesh}).first;
       }
 
-      rendering::Entity rendering_entity{cached_mesh->second, entity_shader,
-                                         entity.model_matrix(),
-                                         entity.wireframe};
+      rendering::Entity rendering_entity{
+          cached_mesh->second,
+          entity_shader,
+          entity.model_matrix(),
+          entity.wireframe,
+      };
 
       m_rendering_context.entity_tree.add(rendering_entity);
     }
 
+    // Load geodata.
     const auto geodata_entities =
-        geodata_loader.load_geodata(map, map_position);
+        geodata_loader.load_geodata(map, map_position, map_bounding_box);
 
     for (const auto &entity : geodata_entities) {
       std::vector<rendering::GeodataBlock> blocks;
@@ -98,12 +123,49 @@ LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
           0, 0};
 
       const auto mesh = std::make_shared<rendering::GeodataMesh>(
-          m_rendering_context.context, blocks, surface);
+          m_rendering_context.context, blocks, surface,
+          entity.mesh->bounding_box);
 
-      rendering::Entity rendering_entity{mesh, geodata_shader,
-                                         entity.model_matrix(), false};
+      rendering::Entity rendering_entity{
+          mesh,
+          geodata_shader,
+          entity.model_matrix(),
+          false,
+      };
 
       m_rendering_context.entity_tree.add(rendering_entity);
     }
   }
+}
+
+auto LoadingSystem::load_texture(const Texture &texture)
+    -> std::shared_ptr<rendering::Texture> {
+
+  if (texture.data == nullptr) {
+    return nullptr;
+  }
+
+  auto format = rendering::Texture::Format::DXT1;
+
+  switch (texture.format) {
+  case TEXTURE_RGBA: {
+    format = rendering::Texture::Format::RGBA;
+    break;
+  }
+  case TEXTURE_DXT3: {
+    format = rendering::Texture::Format::DXT3;
+    break;
+  }
+  case TEXTURE_DXT5: {
+    format = rendering::Texture::Format::DXT5;
+    break;
+  }
+  case TEXTURE_DXT1: {
+    break;
+  }
+  }
+
+  return std::make_shared<rendering::Texture>(m_rendering_context.context,
+                                              format, texture.width,
+                                              texture.height, texture.data);
 }

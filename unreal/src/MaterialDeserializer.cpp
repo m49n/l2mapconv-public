@@ -1,8 +1,6 @@
 // Copy-pasted from https://github.com/gildor2/UEViewer
 // (c) Gildor
 
-// TODO: Not working properly on some HF archives (file: 123, license: 37).
-
 #include "pch.h"
 
 #include "MaterialDeserializer.h"

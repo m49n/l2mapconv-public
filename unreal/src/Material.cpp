@@ -6,13 +6,6 @@
 
 namespace unreal {
 
-void Material::deserialize() {
-  Object::deserialize();
-
-  MaterialDeserializer deserializer;
-  deserializer.deserialize(archive);
-}
-
 auto Modifier::set_property(const Property &property) -> bool {
   if (Material::set_property(property)) {
     return true;
@@ -125,6 +118,10 @@ auto operator>>(Archive &archive, Mipmap &mipmap) -> Archive & {
 
 void Texture::deserialize() {
   BitmapMaterial::deserialize();
+
+  MaterialDeserializer deserializer;
+  deserializer.deserialize(archive);
+
   archive >> mips;
 }
 

@@ -6,9 +6,10 @@ namespace rendering {
 
 GeodataMesh::GeodataMesh(Context &context,
                          const std::vector<GeodataBlock> &blocks,
-                         const MeshSurface &surface)
+                         const MeshSurface &surface,
+                         const math::Box &bounding_box)
     : m_mesh{context, blocks.size(), {vertex_buffer(blocks)}, {}},
-      m_surfaces{surface} {
+      m_surfaces{surface}, m_bounding_box{bounding_box} {
 
   ASSERT(!blocks.empty(), "Rendering", "Geodata must have at least one block");
 }

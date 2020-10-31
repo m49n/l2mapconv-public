@@ -70,6 +70,9 @@ void WindowSystem::frame_begin(Timestep /*frame_time*/) {
   m_window_context.keyboard.shift =
       glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
 
+  m_window_context.keyboard.alt =
+      glfwGetKey(m_window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS;
+
   // Exit on Esc.
   if (glfwWindowShouldClose(m_window) != 0 ||
       glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -81,7 +84,8 @@ void WindowSystem::frame_begin(Timestep /*frame_time*/) {
 void WindowSystem::frame_end(Timestep /*frame_time*/) {
   m_window_context.keyboard = {};
 
-  GL_CALL(glFlush());
+  //  GL_CALL(glFlush());
+  glfwSwapBuffers(m_window);
 }
 
 auto WindowSystem::create_window(const std::string &title, int width,
@@ -97,7 +101,8 @@ auto WindowSystem::create_window(const std::string &title, int width,
 
   // Window properties.
   glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
-  glfwWindowHint(GLFW_DOUBLEBUFFER, GL_FALSE);
+  //  glfwWindowHint(GLFW_DOUBLEBUFFER, GL_FALSE);
+  glfwWindowHint(GLFW_SAMPLES, 4);
 
   // Create window.
   auto *window =

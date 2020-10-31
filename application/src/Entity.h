@@ -1,6 +1,6 @@
 #pragma once
 
-#include <rendering/Texture.h>
+#include <unreal/Material.h>
 
 #include <geodata/Geodata.h>
 
@@ -23,9 +23,23 @@ enum SurfaceType {
   SURFACE_GEODATA = 32,
 };
 
+enum TextureFormat {
+  TEXTURE_RGBA,
+  TEXTURE_DXT1,
+  TEXTURE_DXT3,
+  TEXTURE_DXT5,
+};
+
+struct Texture {
+  TextureFormat format;
+  std::size_t width;
+  std::size_t height;
+  const unsigned char *data;
+};
+
 struct Material {
   glm::vec3 color;
-  std::shared_ptr<rendering::Texture> texture;
+  Texture texture;
 };
 
 struct Surface {
@@ -52,6 +66,7 @@ struct EntityMesh {
 struct GeodataMesh {
   std::vector<geodata::Block> blocks;
   Surface surface;
+  math::Box bounding_box;
 };
 
 template <typename T> struct Entity {

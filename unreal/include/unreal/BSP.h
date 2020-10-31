@@ -39,7 +39,7 @@ enum BSPNodeFlags {
   // Combinations of flags.
   NF_NeverMove = 0x00, // Bsp cleanup must not move nodes with these tags.
 
-  NF_Passable = NF_NotCsg | NF_NotVisBlocking,
+  NF_Passable = NF_NotCsg,
 };
 
 struct BSPNode {
@@ -131,7 +131,7 @@ enum BSPPolygonFlags {
   PF_Transient = PF_Highlighted,
 
   PF_Passable =
-      PF_NoOcclude | PF_NoImport | PF_AddLast | PF_NoShadows | PF_Portal,
+      PF_NoOcclude | PF_NoImport | PF_NotSolid | PF_NoShadows | PF_Portal,
 };
 
 struct BSPSurface {

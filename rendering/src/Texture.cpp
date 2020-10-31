@@ -18,18 +18,34 @@ Texture::Texture(Context &context, Format format, int width, int height,
   GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
   GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
 
-  switch (format) {
-  case Format::RGBA: {
-    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+  if (format == Format::RGBA) {
+    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA,
                          GL_UNSIGNED_BYTE, data));
-    break;
-  }
-  case Format::DXT1: {
-    GL_CALL(glCompressedTexImage2D(GL_TEXTURE_2D, 0,
-                                   GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, width,
-                                   height, 0, (width * height) / 2, data));
-    break;
-  }
+  } else {
+    auto internal_format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+    auto block_size = 8;
+
+    switch (format) {
+    case Format::DXT3: {
+      internal_format = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+      block_size = 16;
+      break;
+    }
+    case Format::DXT5: {
+      internal_format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+      block_size = 16;
+      break;
+    }
+    case Format::DXT1:
+    case Format::RGBA: {
+      break;
+    }
+    }
+
+    const auto size = (width / 4) * (height / 4) * block_size;
+
+    GL_CALL(glCompressedTexImage2D(GL_TEXTURE_2D, 0, internal_format, width,
+                                   height, 0, size, data));
   }
 
   GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));

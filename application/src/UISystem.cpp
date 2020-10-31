@@ -18,7 +18,6 @@ UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
 
   ImGui::StyleColorsDark();
 
-  m_ui_context.input.passable = true;
   m_ui_context.input.terrain = true;
   m_ui_context.input.static_meshes = true;
   m_ui_context.input.csg = true;

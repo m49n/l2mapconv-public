@@ -59,10 +59,12 @@ struct Property {
   };
 
   std::vector<std::uint8_t> data_value;
-  std::vector<std::unordered_map<std::string, Property>> properties;
+  std::vector<std::unordered_map<std::string, Property>> subproperties;
 
   auto bool_value() const -> bool;
-  auto find(const std::string &name, std::size_t index = 0) const -> Property;
+
+  auto subproperty(const std::string &name, std::size_t index = 0) const
+      -> Property;
 
   friend auto operator<<(std::ostream &output, const Property &property)
       -> std::ostream &;

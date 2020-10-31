@@ -23,7 +23,8 @@ class UnrealLoader {
 public:
   explicit UnrealLoader(const std::filesystem::path &root_path);
 
-  auto load_map(const std::string &name, glm::vec3 &position) const
+  auto load_map(const std::string &name, glm::vec3 &position,
+                math::Box &bounding_box) const
       -> std::vector<Entity<EntityMesh>>;
 
 private:

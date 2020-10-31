@@ -32,6 +32,7 @@ struct WindowContext {
     bool w, a, s, d;
     bool m;
     bool shift;
+    bool alt;
   } keyboard;
 
   GLFWwindow *window_handle;

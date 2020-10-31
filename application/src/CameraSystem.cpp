@@ -23,20 +23,25 @@ void CameraSystem::frame_begin(Timestep frame_time) {
 
   // Translation.
   const auto shift_modifier = keyboard.shift ? 10.0f : 1.0f;
+  const auto alt_modifier = keyboard.alt ? 0.2f : 1.0f;
 
   if (keyboard.w) {
-    camera.translate(-camera.forward() * translation_speed * shift_modifier);
+    camera.translate(-camera.forward() * translation_speed * shift_modifier *
+                     alt_modifier);
   }
 
   if (keyboard.s) {
-    camera.translate(camera.forward() * translation_speed * shift_modifier);
+    camera.translate(camera.forward() * translation_speed * shift_modifier *
+                     alt_modifier);
   }
 
   if (keyboard.a) {
-    camera.translate(-camera.right() * translation_speed * shift_modifier);
+    camera.translate(-camera.right() * translation_speed * shift_modifier *
+                     alt_modifier);
   }
 
   if (keyboard.d) {
-    camera.translate(camera.right() * translation_speed * shift_modifier);
+    camera.translate(camera.right() * translation_speed * shift_modifier *
+                     alt_modifier);
   }
 }

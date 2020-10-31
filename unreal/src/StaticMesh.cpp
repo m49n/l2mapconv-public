@@ -59,8 +59,9 @@ auto StaticMesh::set_property(const Property &property) -> bool {
       StaticMeshMaterial material{};
 
       material.enable_collision =
-          property.find("EnableCollision", i).bool_value();
-      material.material.from_property(property.find("Material", i), archive);
+          property.subproperty("EnableCollision", i).bool_value();
+      material.material.from_property(property.subproperty("Material", i),
+                                      archive);
 
       materials.push_back(std::move(material));
     }

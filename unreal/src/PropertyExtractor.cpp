@@ -73,11 +73,11 @@ void PropertyExtractor::deserialize(Property &property) const {
     const auto array_size = property.size - size_size;
 
     if (property.name == "Materials") {
-      property.properties.reserve(property.array_size);
+      property.subproperties.reserve(property.array_size);
       const auto array_start_position = input.tellg();
 
       for (auto i = 0; i < property.array_size; ++i) {
-        property.properties.push_back(extract_properties_map());
+        property.subproperties.push_back(extract_properties_map());
       }
 
       const auto array_end_position = input.tellg();
@@ -97,7 +97,7 @@ void PropertyExtractor::deserialize(Property &property) const {
     } else if (property.struct_name == "Vector") {
       m_archive >> property.vector_value;
     } else if (property.struct_name == "TerrainLayer") {
-      property.properties.push_back(extract_properties_map());
+      property.subproperties.push_back(extract_properties_map());
     } else {
       utils::Log(utils::LOG_DEBUG, "Unreal")
           << "Skipping struct: " << property.struct_name << std::endl;

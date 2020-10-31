@@ -2,8 +2,6 @@
 
 #include "L2JSerializer.h"
 
-#include <utils/ExtractionHelpers.h>
-
 namespace geodata {
 
 auto L2JSerializer::deserialize(std::istream &input) const -> Geodata {

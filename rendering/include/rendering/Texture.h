@@ -14,6 +14,8 @@ public:
   enum class Format {
     RGBA,
     DXT1,
+    DXT3,
+    DXT5,
   };
 
   explicit Texture(Context &context, Format format, int width, int height,
