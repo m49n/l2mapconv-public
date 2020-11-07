@@ -12,18 +12,19 @@
 
 namespace unreal {
 
-auto ObjectLoader::load_object(std::string_view name) const
+auto ObjectLoader::load_object(const ObjectImport &import) const
     -> std::shared_ptr<Object> {
 
   for (auto &object_export : m_archive.export_map) {
-    if (object_export.object_name == name &&
+    if (object_export.object_name == import.object_name &&
+        object_export.class_name == import.class_name &&
         object_export.class_name != "Package") {
       return export_object(object_export);
     }
   }
 
   utils::Log(utils::LOG_WARN, "Unreal")
-      << "Can't find object: " << name << std::endl;
+      << "Can't find object: " << import.object_name << std::endl;
   return nullptr;
 }
 
@@ -54,12 +55,13 @@ auto ObjectLoader::load_object(Index index) const -> std::shared_ptr<Object> {
       return nullptr;
     }
 
-    return archive->object_loader.load_object(import.object_name);
+    return archive->object_loader.load_object(import);
   }
 
   if (index > 0) {
     ASSERT(static_cast<std::size_t>(index) <= m_archive.export_map.size(),
            "Unreal", "Index out of export_map bounds");
+
     return export_object(m_archive.export_map[index - 1]);
   }
 

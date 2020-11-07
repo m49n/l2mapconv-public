@@ -1,7 +1,5 @@
 #pragma once
 
-#include <unreal/Material.h>
-
 #include <geodata/Geodata.h>
 
 #include <math/Box.h>

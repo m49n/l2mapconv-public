@@ -52,6 +52,7 @@ public:
 private:
   Index m_index;
   const ObjectLoader *m_object_loader;
+
   mutable std::shared_ptr<T> m_object;
 
   template <typename U> auto load_object() const -> std::shared_ptr<U> {

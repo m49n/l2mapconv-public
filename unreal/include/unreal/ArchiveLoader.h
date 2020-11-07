@@ -32,7 +32,6 @@ private:
   const std::filesystem::path m_root_path;
   const std::vector<SearchConfig> m_configs;
 
-  mutable NameTable m_name_table;
   mutable std::unordered_map<std::string, Archive> m_archives;
 
   auto load_and_cache_archive(const std::string &name,

@@ -15,7 +15,7 @@ class LoadingSystem : public System {
 public:
   explicit LoadingSystem(RenderingContext &rendering_context,
                          const std::filesystem::path &root_path,
-                         const std::vector<std::string> &maps);
+                         const std::vector<std::string> &map_names);
 
 private:
   RenderingContext &m_rendering_context;

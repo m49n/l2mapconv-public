@@ -15,6 +15,7 @@ class Archive;
 class ArchiveLoader;
 class Object;
 
+struct ObjectImport;
 struct ObjectExport;
 
 class ObjectLoader {
@@ -22,7 +23,7 @@ public:
   explicit ObjectLoader(Archive &archive, const ArchiveLoader &archive_loader)
       : m_archive{archive}, m_archive_loader{archive_loader} {}
 
-  auto load_object(std::string_view name) const -> std::shared_ptr<Object>;
+  auto load_object(const ObjectImport &import) const -> std::shared_ptr<Object>;
   auto load_object(Index index) const -> std::shared_ptr<Object>;
 
   template <typename T>
@@ -32,7 +33,7 @@ public:
   friend auto operator<<(std::ostream &output,
                          const ObjectLoader &object_loader) -> std::ostream &;
 
-public:
+private:
   Archive &m_archive;
   const ArchiveLoader &m_archive_loader;
 

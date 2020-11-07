@@ -77,9 +77,12 @@ struct PackageHeader {
 };
 
 class Archive : public utils::NonCopyable {
+private:
+  mutable NameTable m_name_table;
+
 public:
-  ObjectLoader object_loader;
-  PropertyExtractor property_extractor;
+  const ObjectLoader object_loader;
+  const PropertyExtractor property_extractor;
 
   const Name name;
 
@@ -89,17 +92,17 @@ public:
   std::vector<ObjectImport> import_map;
   std::vector<ObjectExport> export_map;
 
-  explicit Archive(const ArchiveLoader &archive_loader, Name name,
-                   std::stringstream input, NameTable &name_table);
+  explicit Archive(const std::string &name, std::stringstream input,
+                   const ArchiveLoader &archive_loader);
 
   Archive(Archive &&other)
       : object_loader{other.object_loader},
         property_extractor{other.property_extractor}, name{std::move(
                                                           other.name)},
         header{std::move(other.header)}, name_map{std::move(other.name_map)},
-        import_map{std::move(other.import_map)}, export_map{std::move(
-                                                     other.export_map)},
-        m_input{std::move(other.m_input)}, m_name_table{other.m_name_table} {}
+        import_map{std::move(other.import_map)},
+        export_map{std::move(other.export_map)}, m_input{std::move(
+                                                     other.m_input)} {}
 
   operator std::istream &() { return m_input; }
 
@@ -139,7 +142,6 @@ public:
 
 private:
   std::stringstream m_input;
-  NameTable &m_name_table;
 };
 
 } // namespace unreal

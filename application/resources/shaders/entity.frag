@@ -20,7 +20,7 @@ void main() {
 
     if (dot(normal, light_direction) < 0.0f) {
         normal = -normal;
-        color = color * 0.75f;
+        color = color * 0.5f;
     }
 
     float light_intensity = max(0.0f, dot(normal, light_direction));

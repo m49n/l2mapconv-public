@@ -23,8 +23,8 @@ auto Application::run() -> int {
 
   const auto root_path = m_arguments[0];
 
-  auto maps = m_arguments;
-  maps.erase(maps.begin());
+  auto map_names = m_arguments;
+  map_names.erase(map_names.begin());
 
   // Make sure to remove systems & contexts before OpenGL context will be
   // destroyed.
@@ -47,8 +47,8 @@ auto Application::run() -> int {
         rendering_context, window_context, ui_context));
     systems.push_back(std::make_unique<CameraSystem>(
         rendering_context, window_context, ui_context));
-    systems.push_back(
-        std::make_unique<LoadingSystem>(rendering_context, root_path, maps));
+    systems.push_back(std::make_unique<LoadingSystem>(rendering_context,
+                                                      root_path, map_names));
 
     for (const auto &system : systems) {
       system->start();

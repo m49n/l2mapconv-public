@@ -32,8 +32,8 @@ void main() {
     int type = v_block[0].w & 0xff;
     int nswe = v_block[0].w >> 16;
 
-    float scale = type == 0 ? 64.0f : 8.0f;
-    vec3 center = vec3(x * 16.0f + scale, y * 16.0f + scale, z);
+    float scale = type == 0 ? 63.0f : 7.0f;
+    vec3 center = vec3(x * 16.0f + scale, y * 16.0f + scale, z - 16.0f);
 
     if ((nswe & 0x8) != 0) {
         uvs[0].x += 0.5f;

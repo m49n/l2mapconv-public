@@ -5,10 +5,10 @@
 
 namespace unreal {
 
-Archive::Archive(const ArchiveLoader &archive_loader, Name name,
-                 std::stringstream input, NameTable &name_table)
+Archive::Archive(const std::string &name, std::stringstream input,
+                 const ArchiveLoader &archive_loader)
     : object_loader{*this, archive_loader}, property_extractor{*this},
-      name{name}, m_input{std::move(input)}, m_name_table{name_table} {
+      name{m_name_table.name(name)}, m_input{std::move(input)} {
 
   *this >> header;
 

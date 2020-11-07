@@ -46,8 +46,8 @@ auto ArchiveLoader::load_and_cache_archive(
     dump_decrypted(path, decrypted);
   }
 
-  const auto inserted = m_archives.try_emplace(
-      name, *this, m_name_table.name(name), std::move(decrypted), m_name_table);
+  const auto inserted =
+      m_archives.try_emplace(name, name, std::move(decrypted), *this);
   auto *archive = &inserted.first->second;
 
   utils::Log(utils::LOG_INFO, "Unreal")

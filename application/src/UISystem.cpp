@@ -21,7 +21,6 @@ UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
   m_ui_context.input.terrain = true;
   m_ui_context.input.static_meshes = true;
   m_ui_context.input.csg = true;
-  m_ui_context.input.geodata = true;
 }
 
 UISystem::~UISystem() {

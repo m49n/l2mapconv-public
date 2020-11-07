@@ -10,16 +10,13 @@ UnrealLoader::UnrealLoader(const std::filesystem::path &root_path)
                         unreal::SearchConfig{"Textures", "utx"},
                         unreal::SearchConfig{"SysTextures", "utx"}}} {}
 
-auto UnrealLoader::load_map(const std::string &name, glm::vec3 &position,
-                            math::Box &bounding_box) const
-    -> std::vector<Entity<EntityMesh>> {
-
-  std::vector<Entity<EntityMesh>> entities;
+auto UnrealLoader::load_map(const std::string &name) const -> Map {
+  Map map{};
 
   const auto optional_package = m_package_loader.load_package(name);
 
   if (!optional_package.has_value()) {
-    return {};
+    return Map{};
   }
 
   const auto package = optional_package.value();
@@ -27,37 +24,38 @@ auto UnrealLoader::load_map(const std::string &name, glm::vec3 &position,
   // Terrain.
   const auto terrain = load_terrain(package);
 
-  position = to_vec3(terrain->position());
+  map.position = to_vec3(terrain->position());
   const auto scale = to_vec3(terrain->scale());
-  bounding_box =
-      math::Box{to_vec3(terrain->bounding_box().min) * scale + position,
-                to_vec3(terrain->bounding_box().max) * scale + position};
+  map.bounding_box =
+      math::Box{to_vec3(terrain->bounding_box().min) * scale + map.position,
+                to_vec3(terrain->bounding_box().max) * scale + map.position};
 
   if (!terrain->broken_scale()) {
     const auto terrain_entities = load_terrain_entities(*terrain);
-    entities.insert(entities.end(),
-                    std::make_move_iterator(terrain_entities.begin()),
-                    std::make_move_iterator(terrain_entities.end()));
+    map.entities.insert(map.entities.end(),
+                        std::make_move_iterator(terrain_entities.begin()),
+                        std::make_move_iterator(terrain_entities.end()));
   }
 
   // Mesh actors.
   const auto mesh_actor_entities = load_mesh_actor_entities(package);
-  entities.insert(entities.end(),
-                  std::make_move_iterator(mesh_actor_entities.begin()),
-                  std::make_move_iterator(mesh_actor_entities.end()));
+  map.entities.insert(map.entities.end(),
+                      std::make_move_iterator(mesh_actor_entities.begin()),
+                      std::make_move_iterator(mesh_actor_entities.end()));
 
   // BSPs.
-  const auto bsp_entities = load_bsp_entities(package, bounding_box);
-  entities.insert(entities.end(), std::make_move_iterator(bsp_entities.begin()),
-                  std::make_move_iterator(bsp_entities.end()));
+  const auto bsp_entities = load_bsp_entities(package, map.bounding_box);
+  map.entities.insert(map.entities.end(),
+                      std::make_move_iterator(bsp_entities.begin()),
+                      std::make_move_iterator(bsp_entities.end()));
 
   // Volumes.
-  const auto volume_entities = load_volume_entities(package, bounding_box);
-  entities.insert(entities.end(),
-                  std::make_move_iterator(volume_entities.begin()),
-                  std::make_move_iterator(volume_entities.end()));
+  const auto volume_entities = load_volume_entities(package, map.bounding_box);
+  map.entities.insert(map.entities.end(),
+                      std::make_move_iterator(volume_entities.begin()),
+                      std::make_move_iterator(volume_entities.end()));
 
-  return entities;
+  return map;
 }
 
 auto UnrealLoader::load_map_package(int x, int y) const
@@ -342,10 +340,12 @@ auto UnrealLoader::load_mesh_actor_entities(
       continue;
     }
 
-    auto &unreal_mesh = mesh_actor->static_mesh;
+    const auto &unreal_mesh = mesh_actor->static_mesh;
 
-    // Rare case.
     if (!unreal_mesh) {
+      utils::Log(utils::LOG_WARN, "App")
+          << "No static mesh for actor: " << mesh_actor->full_name()
+          << std::endl;
       continue;
     }
 
@@ -416,6 +416,12 @@ auto UnrealLoader::load_mesh_actor_entities(
         } else {
           surface.type |= SURFACE_PASSABLE;
           surface.material.color = {0.7f, 1.0f, 0.7f};
+        }
+
+        const auto shader = material.material.as<unreal::Shader>();
+
+        if (shader && (shader->two_sided || shader->treat_as_two_sided)) {
+          surface.material.color = {1.0f, 0.7f, 0.9f};
         }
 
         mesh->surfaces.push_back(surface);

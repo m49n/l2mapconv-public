@@ -13,6 +13,8 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE src/pch.h)
 target_link_libraries(${PROJECT_NAME}
     PRIVATE utils
     PRIVATE math
+
+    PRIVATE glm
 )
 
 # Compiler options

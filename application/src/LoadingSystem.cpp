@@ -6,7 +6,7 @@
 
 LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
                              const std::filesystem::path &root_path,
-                             const std::vector<std::string> &maps)
+                             const std::vector<std::string> &map_names)
     : m_rendering_context{rendering_context} {
 
   UnrealLoader unreal_loader{root_path};
@@ -27,21 +27,17 @@ LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
   std::unordered_map<const unsigned char *, std::shared_ptr<rendering::Texture>>
       texture_cache;
 
-  for (const auto &map : maps) {
-    // Load entities.
-    glm::vec3 map_position{};
-    math::Box map_bounding_box{};
-
-    const auto map_entities =
-        unreal_loader.load_map(map, map_position, map_bounding_box);
+  for (const auto &map_name : map_names) {
+    // Load map entities.
+    const auto map = unreal_loader.load_map(map_name);
 
     // Set initial camera position.
-    if (!map_entities.empty()) {
+    if (!map.entities.empty()) {
       m_rendering_context.camera.set_position(
-          {map_position.x + 256.0f * 64.0f, map_position.y, 0.0f});
+          {map.position.x + 256.0f * 64.0f, map.position.y, 0.0f});
     }
 
-    for (const auto &entity : map_entities) {
+    for (const auto &entity : map.entities) {
       // Load mesh if needed.
       auto cached_mesh = entity_mesh_cache.find(entity.mesh);
 
@@ -98,7 +94,7 @@ LoadingSystem::LoadingSystem(RenderingContext &rendering_context,
 
     // Load geodata.
     const auto geodata_entities =
-        geodata_loader.load_geodata(map, map_position, map_bounding_box);
+        geodata_loader.load_geodata(map_name, map.position, map.bounding_box);
 
     for (const auto &entity : geodata_entities) {
       std::vector<rendering::GeodataBlock> blocks;
