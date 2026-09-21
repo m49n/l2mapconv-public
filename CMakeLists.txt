@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(l2mapconv)
 
+include(CTest)
+
 # Install directory
 set(INSTALL_DIR ${CMAKE_BINARY_DIR}/install)
 
@@ -34,3 +36,7 @@ add_subdirectory(rendering)
 add_subdirectory(geodata)
 
 add_subdirectory(application)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
