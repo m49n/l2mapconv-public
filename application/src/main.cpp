@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "Application.h"
+#include "CommandLine.h"
 
 auto main(int argc, char **argv) -> int {
   // Define options
@@ -16,7 +17,7 @@ auto main(int argc, char **argv) -> int {
       ("build", "Build maps (see results in the `output` directory)")        //
                                                                              //
       ("client-root", "Path to the Lineage II client",                       //
-       cxxopts::value<std::filesystem::path>())                              //
+       cxxopts::value<std::string>())                                        //
                                                                              //
       ("log-level",                                                          //
        "Log level (0 - none, 1 - fatal, 2 - error, 3 - warn, 4 - info, 5 - " //
@@ -62,7 +63,8 @@ auto main(int argc, char **argv) -> int {
     return EXIT_FAILURE;
   }
 
-  const auto &client_root = input["client-root"].as<std::filesystem::path>();
+  const auto client_root =
+      client_root_path(input["client-root"].as<std::string>());
   if (!std::filesystem::exists(client_root)) {
     utils::Log(utils::LOG_ERROR)
         << "Invalid Lineage II client path: " << client_root << std::endl;
