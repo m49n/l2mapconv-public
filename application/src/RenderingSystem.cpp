@@ -2,6 +2,7 @@
 
 #include "Entity.h"
 #include "RenderingSystem.h"
+#include "SurfaceVisibility.h"
 
 RenderingSystem::RenderingSystem(RenderingContext &rendering_context,
                                  WindowContext &window_context,
@@ -34,34 +35,16 @@ void RenderingSystem::frame_end(Timestep /*frame_time*/) {
   rendering::FrameSettings settings{};
   settings.wireframe = m_ui_context.rendering.wireframe;
   settings.culling = m_ui_context.rendering.culling;
-
-  if (m_ui_context.rendering.passable) {
-    settings.surface_filter |= SURFACE_PASSABLE;
-  }
-
-  if (m_ui_context.rendering.terrain) {
-    settings.surface_filter |= SURFACE_TERRAIN;
-  }
-
-  if (m_ui_context.rendering.static_meshes) {
-    settings.surface_filter |= SURFACE_STATIC_MESH;
-  }
-
-  if (m_ui_context.rendering.csg) {
-    settings.surface_filter |= SURFACE_CSG;
-  }
-
-  if (m_ui_context.rendering.bounding_boxes) {
-    settings.surface_filter |= SURFACE_BOUNDING_BOX;
-  }
-
-  if (m_ui_context.rendering.imported_geodata) {
-    settings.surface_filter |= SURFACE_IMPORTED_GEODATA;
-  }
-
-  if (m_ui_context.rendering.generated_geodata) {
-    settings.surface_filter |= SURFACE_GENERATED_GEODATA;
-  }
+  settings.surface_filter = surface_filter({
+      .passable = m_ui_context.rendering.passable,
+      .terrain = m_ui_context.rendering.terrain,
+      .static_meshes = m_ui_context.rendering.static_meshes,
+      .csg = m_ui_context.rendering.csg,
+      .blocking_volumes = m_ui_context.rendering.blocking_volumes,
+      .bounding_boxes = m_ui_context.rendering.bounding_boxes,
+      .imported_geodata = m_ui_context.rendering.imported_geodata,
+      .generated_geodata = m_ui_context.rendering.generated_geodata,
+  });
 
   if (settings.wireframe) {
     GL_CALL(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));

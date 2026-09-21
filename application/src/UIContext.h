@@ -17,6 +17,7 @@ struct UIContext {
     bool terrain;
     bool static_meshes;
     bool csg;
+    bool blocking_volumes;
     bool bounding_boxes;
     bool imported_geodata;
     bool generated_geodata;
@@ -26,6 +27,7 @@ struct UIContext {
       terrain = true;
       static_meshes = true;
       csg = true;
+      blocking_volumes = true;
       generated_geodata = true;
     }
   } rendering;

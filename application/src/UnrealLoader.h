@@ -53,7 +53,8 @@ private:
 
   auto load_model_entity(const unreal::Model &model,
                          const geometry::Box &map_bounding_box,
-                         bool check_bounds = true) const
+                         bool check_bounds = true,
+                         std::uint64_t surface_type = SURFACE_CSG) const
       -> std::optional<Entity<EntityMesh>>;
 
   void place_actor(const unreal::Actor &actor,

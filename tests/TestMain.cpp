@@ -1,6 +1,7 @@
 #include "CommandLine.h"
 #include "CameraMotion.h"
 #include "TestSupport.h"
+#include "SurfaceVisibility.h"
 #include "UnrealConverters.h"
 
 #include <filesystem>
@@ -91,6 +92,28 @@ auto main() -> int {
                               forward, right, up, 0.05f, 1000.0f),
            {0.0f, 0.0f, 0.0f}),
       "opposing inputs cancel");
+
+  failures += expect(surface_filter({.passable = true}) == SURFACE_PASSABLE,
+                     "passable visibility adds only its modifier bit");
+  failures += expect(surface_filter({.terrain = true}) == SURFACE_TERRAIN,
+                     "terrain visibility adds only the terrain bit");
+  failures +=
+      expect(surface_filter({.static_meshes = true}) == SURFACE_STATIC_MESH,
+             "static mesh visibility adds only the static mesh bit");
+  failures += expect(surface_filter({.csg = true}) == SURFACE_CSG,
+                     "CSG visibility adds only the CSG bit");
+  failures += expect(surface_filter({.blocking_volumes = true}) ==
+                         SURFACE_BLOCKING_VOLUME,
+                     "blocking volume visibility adds only its own bit");
+  failures += expect(surface_filter({.bounding_boxes = true}) ==
+                         SURFACE_BOUNDING_BOX,
+                     "bounding box visibility adds only its own bit");
+  failures += expect(surface_filter({.imported_geodata = true}) ==
+                         SURFACE_IMPORTED_GEODATA,
+                     "imported geodata visibility adds only its own bit");
+  failures += expect(surface_filter({.generated_geodata = true}) ==
+                         SURFACE_GENERATED_GEODATA,
+                     "generated geodata visibility adds only its own bit");
 
   return failures;
 }

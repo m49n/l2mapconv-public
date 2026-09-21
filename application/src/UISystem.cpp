@@ -76,6 +76,8 @@ void UISystem::rendering_window(Timestep frame_time) const {
   ImGui::Checkbox("Terrain", &m_ui_context.rendering.terrain);
   ImGui::Checkbox("Static Meshes", &m_ui_context.rendering.static_meshes);
   ImGui::Checkbox("CSG", &m_ui_context.rendering.csg);
+  ImGui::Checkbox("Blocking Volumes",
+                  &m_ui_context.rendering.blocking_volumes);
   ImGui::Checkbox("Bounding Boxes", &m_ui_context.rendering.bounding_boxes);
   ImGui::Checkbox("Imported Geodata", &m_ui_context.rendering.imported_geodata);
   ImGui::Checkbox("Generated Geodata",

@@ -504,8 +504,8 @@ auto UnrealLoader::load_volume_entities(
       continue;
     }
 
-    if (auto entity =
-            load_model_entity(volume->brush, map_bounding_box, false)) {
+    if (auto entity = load_model_entity(volume->brush, map_bounding_box, false,
+                                        SURFACE_BLOCKING_VOLUME)) {
       place_actor(*volume, *entity);
       entities.push_back(*entity);
     }
@@ -516,7 +516,8 @@ auto UnrealLoader::load_volume_entities(
 
 auto UnrealLoader::load_model_entity(const unreal::Model &model,
                                      const geometry::Box &map_bounding_box,
-                                     bool check_bounds) const
+                                     bool check_bounds,
+                                     std::uint64_t surface_type) const
     -> std::optional<Entity<EntityMesh>> {
 
   if (model.points.empty()) {
@@ -612,7 +613,7 @@ auto UnrealLoader::load_model_entity(const unreal::Model &model,
 
     // Surface
     Surface surface{};
-    surface.type = SURFACE_CSG;
+    surface.type = surface_type;
     surface.index_offset = index_offset;
     surface.index_count = mesh->indices.size() - index_offset;
     surface.material.color = {1.0f, 1.0f, 0.7f};
