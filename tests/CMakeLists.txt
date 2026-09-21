@@ -5,12 +5,15 @@ add_executable(l2mapconv_tests
     MapLoadOptionsTests.cpp
     SceneGroupTests.cpp
     MapSelectionTests.cpp
+    MapLoadingTests.cpp
     ${CMAKE_SOURCE_DIR}/application/src/CameraMotion.cpp
     ${CMAKE_SOURCE_DIR}/application/src/ExecutablePath.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapCatalog.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapGridTransform.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapResidency.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapSelectionContext.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/MapLoadQueue.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/MapLoadingWorker.cpp
     ${CMAKE_SOURCE_DIR}/application/src/UnrealLoader.cpp
 )
 
