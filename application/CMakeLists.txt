@@ -18,6 +18,8 @@ add_executable(${PROJECT_NAME}
     src/MapSelectionContext.cpp
     src/MapLoadQueue.cpp
     src/MapLoadingWorker.cpp
+    src/MapStreamingSystem.cpp
+    src/RendererMapSceneSink.cpp
     src/UnrealMapSource.cpp
     src/LoadingSystem.cpp
     src/GeodataSystem.cpp

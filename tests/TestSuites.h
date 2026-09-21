@@ -6,3 +6,4 @@ auto run_map_load_options_tests() -> int;
 auto run_scene_group_tests() -> int;
 auto run_map_selection_tests() -> int;
 auto run_map_loading_tests() -> int;
+auto run_map_streaming_tests() -> int;

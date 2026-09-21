@@ -6,6 +6,11 @@
 #include "GeodataContext.h"
 #include "GeodataSystem.h"
 #include "LoadingSystem.h"
+#include "MapCatalog.h"
+#include "MapLoadingWorker.h"
+#include "MapSelectionContext.h"
+#include "MapStreamingSystem.h"
+#include "RendererMapSceneSink.h"
 #include "RenderingContext.h"
 #include "RenderingSystem.h"
 #include "UIContext.h"
@@ -13,11 +18,46 @@
 #include "WindowContext.h"
 #include "WindowSystem.h"
 
+#include "UnrealMapSource.h"
+
+#include <algorithm>
+
 Application::Application(std::filesystem::path resource_root)
     : m_resource_root{std::move(resource_root)} {}
 
 void Application::preview(const std::filesystem::path &client_root,
                           const std::vector<std::string> &maps) const {
+
+  if (maps.empty()) {
+    utils::Log(utils::LOG_ERROR, "App")
+        << "Preview requires at least one seed map" << std::endl;
+    return;
+  }
+
+  auto catalog = MapCatalog::discover(client_root);
+  std::vector<MapCoordinate> startup_coordinates;
+  for (const auto &map_name : maps) {
+    const auto region =
+        std::find_if(catalog.regions().begin(), catalog.regions().end(),
+                     [&map_name](const MapRegion &candidate) {
+                       return candidate.name == map_name;
+                     });
+    if (region == catalog.regions().end()) {
+      utils::Log(utils::LOG_ERROR, "App")
+          << "Map is not present in the client catalog: " << map_name
+          << std::endl;
+      return;
+    }
+    startup_coordinates.push_back(region->coordinate);
+  }
+
+  utils::Log(utils::LOG_INFO, "App")
+      << "Map catalog count=" << catalog.regions().size() << std::endl;
+  MapSelectionContext map_selection{std::move(catalog)};
+  for (const auto coordinate : startup_coordinates) {
+    map_selection.set_manual(coordinate, true);
+  }
+  const auto seed_coordinate = startup_coordinates.front();
 
   // Make sure to remove systems & contexts before OpenGL context will be
   // destroyed
@@ -26,6 +66,7 @@ void Application::preview(const std::filesystem::path &client_root,
     ApplicationContext application_context{};
     WindowContext window_context{};
     UIContext ui_context{};
+    ui_context.geodata.streaming_preview = true;
     RenderingContext rendering_context{};
     GeodataContext geodata_context{};
 
@@ -36,14 +77,18 @@ void Application::preview(const std::filesystem::path &client_root,
 
     systems.push_back(std::make_unique<WindowSystem>(
         window_context, application_context, "l2mapconv", 1440, 1000));
-    systems.push_back(std::make_unique<UISystem>(ui_context, window_context,
-                                                 rendering_context));
-    systems.push_back(std::make_unique<RenderingSystem>(
-        rendering_context, window_context, ui_context));
     systems.push_back(std::make_unique<CameraSystem>(
         rendering_context, window_context, ui_context));
-    systems.push_back(std::make_unique<LoadingSystem>(
-        geodata_context, &renderer, client_root, maps));
+    systems.push_back(std::make_unique<MapStreamingSystem>(
+        map_selection,
+        std::make_unique<MapLoadingWorker>(
+            std::make_unique<UnrealMapSource>(client_root)),
+        std::make_unique<RendererMapSceneSink>(renderer, rendering_context),
+        seed_coordinate));
+    systems.push_back(std::make_unique<UISystem>(
+        ui_context, window_context, rendering_context, map_selection));
+    systems.push_back(std::make_unique<RenderingSystem>(
+        rendering_context, window_context, ui_context));
     systems.push_back(std::make_unique<GeodataSystem>(geodata_context,
                                                       ui_context, &renderer));
 
