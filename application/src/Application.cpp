@@ -26,13 +26,18 @@
 Application::Application(std::filesystem::path resource_root)
     : m_resource_root{std::move(resource_root)} {}
 
-void Application::preview(const std::filesystem::path &client_root,
-                          const std::vector<std::string> &maps) const {
+auto Application::preview(const std::filesystem::path &client_root,
+                          const std::vector<std::string> &maps,
+                          std::vector<std::filesystem::path> recent_clients,
+                          ClientSessionContext::BrowseHandler browse_handler)
+    const -> PreviewSessionResult {
+
+  PreviewSessionResult result;
 
   if (maps.empty()) {
     utils::Log(utils::LOG_ERROR, "App")
         << "Preview requires at least one seed map" << std::endl;
-    return;
+    return result;
   }
 
   auto catalog = MapCatalog::discover(client_root);
@@ -47,7 +52,7 @@ void Application::preview(const std::filesystem::path &client_root,
       utils::Log(utils::LOG_ERROR, "App")
           << "Map is not present in the client catalog: " << map_name
           << std::endl;
-      return;
+      return result;
     }
     startup_coordinates.push_back(region->coordinate);
   }
@@ -71,6 +76,8 @@ void Application::preview(const std::filesystem::path &client_root,
   {
     UIContext ui_context{};
     ui_context.geodata.streaming_preview = true;
+    ClientSessionContext client_session{client_root, std::move(recent_clients),
+                                        std::move(browse_handler)};
     RenderingContext rendering_context{};
     GeodataContext geodata_context{};
 
@@ -86,7 +93,8 @@ void Application::preview(const std::filesystem::path &client_root,
         std::make_unique<RendererMapSceneSink>(renderer, rendering_context),
         seed_coordinate));
     systems.push(std::make_unique<UISystem>(ui_context, window_context,
-                                            rendering_context, map_selection));
+                                            rendering_context, map_selection,
+                                            client_session));
     systems.push(std::make_unique<RenderingSystem>(rendering_context,
                                                    window_context, ui_context));
     systems.push(std::make_unique<GeodataSystem>(geodata_context, ui_context,
@@ -109,10 +117,15 @@ void Application::preview(const std::filesystem::path &client_root,
       systems.frame_begin(frame_time);
       systems.frame_end(frame_time);
       window_system.frame_end(frame_time);
+      if (client_session.requested_client()) {
+        application_context.running = false;
+      }
     }
     systems.shutdown();
+    result.requested_client = client_session.requested_client();
   }
   window_system.stop();
+  return result;
 }
 
 void Application::build(const std::filesystem::path &client_root,

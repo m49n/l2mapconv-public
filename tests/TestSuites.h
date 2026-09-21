@@ -11,3 +11,4 @@ auto run_system_stack_tests() -> int;
 auto run_imported_geodata_tests() -> int;
 auto run_recent_clients_tests() -> int;
 auto run_client_startup_tests() -> int;
+auto run_client_session_tests() -> int;

@@ -32,6 +32,11 @@ auto map_state_label(const MapSelectionContext &selection,
   return "-";
 }
 
+auto path_label(const std::filesystem::path &path) -> std::string {
+  const auto value = path.u8string();
+  return {value.begin(), value.end()};
+}
+
 } // namespace
 
 UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
@@ -60,9 +65,11 @@ UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
 
 UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
                    RenderingContext &rendering_context,
-                   MapSelectionContext &map_selection_context)
+                   MapSelectionContext &map_selection_context,
+                   ClientSessionContext &client_session_context)
     : UISystem{ui_context, window_context, rendering_context} {
   m_map_selection_context = &map_selection_context;
+  m_client_session_context = &client_session_context;
 }
 
 UISystem::~UISystem() {
@@ -79,8 +86,42 @@ void UISystem::frame_begin(Timestep frame_time) {
   if (m_map_selection_context != nullptr) {
     maps_window();
   }
+  if (m_client_session_context != nullptr) {
+    client_window();
+  }
   rendering_window(frame_time);
   geodata_window();
+}
+
+void UISystem::client_window() const {
+  auto &client = *m_client_session_context;
+  const auto current = path_label(client.current_client());
+
+  ImGui::Begin("Client", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::TextUnformatted("Current client:");
+  ImGui::TextWrapped("%s", current.c_str());
+  if (ImGui::Button("Browse...")) {
+    client.browse();
+  }
+
+  if (!client.recent_clients().empty()) {
+    ImGui::Separator();
+    ImGui::TextUnformatted("Recent clients:");
+    for (std::size_t index = 0; index < client.recent_clients().size();
+         ++index) {
+      const auto label = path_label(client.recent_clients()[index]);
+      ImGui::PushID(static_cast<int>(index));
+      if (ImGui::Button(label.c_str())) {
+        client.request_switch(client.recent_clients()[index]);
+      }
+      ImGui::PopID();
+    }
+  }
+
+  if (!client.error().empty()) {
+    ImGui::TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "%s", client.error().c_str());
+  }
+  ImGui::End();
 }
 
 void UISystem::frame_end(Timestep /*frame_time*/) {
