@@ -397,16 +397,15 @@ auto UnrealLoader::load_mesh_actor_entities(
       // Bounding box
       mesh->bounding_box = bounding_box;
 
-      ASSERT(!unreal_mesh->uv_stream.empty(), "App",
-             "Surface doesn't have texture coordinates");
-      auto uvs = unreal_mesh->uv_stream[0].uvs.begin();
-
       // Vertices
-      for (const auto &vertex : unreal_mesh->vertex_stream.vertices) {
+      const auto &vertices = unreal_mesh->vertex_stream.vertices;
+      for (std::size_t vertex_index = 0; vertex_index < vertices.size();
+           ++vertex_index) {
+        const auto &vertex = vertices[vertex_index];
         mesh->vertices.push_back({to_vec3(vertex.location),
                                   to_vec3(vertex.normal),
-                                  {uvs->u, uvs->v}});
-        ++uvs;
+                                  primary_uv(unreal_mesh->uv_stream,
+                                             vertex_index)});
       }
 
       // Surfaces
