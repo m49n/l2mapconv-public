@@ -4,6 +4,7 @@
 #include "SceneStats.h"
 #include "SurfaceVisibility.h"
 #include "TestSupport.h"
+#include "TestSuites.h"
 #include "UISettings.h"
 #include "UnrealConverters.h"
 
@@ -38,6 +39,8 @@ auto main(int /*argc*/, char **argv) -> int {
                      "preview never writes automatic ImGui settings");
   failures += expect(primary_uv({}, 0) == glm::vec2{0.0f, 0.0f},
                      "missing UV stream uses zero UV");
+
+  failures += run_map_catalog_tests();
 
   unreal::StaticMeshUVStream stream{};
   stream.uvs.push_back({0.25f, 0.75f});
