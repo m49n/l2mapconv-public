@@ -26,6 +26,7 @@ add_executable(${PROJECT_NAME}
     src/ClientStartup.cpp
     src/ClientFolderPicker.cpp
     src/ClientSessionContext.cpp
+    src/DesktopStartup.cpp
     src/UnrealMapSource.cpp
     src/LoadingSystem.cpp
     src/GeodataSystem.cpp

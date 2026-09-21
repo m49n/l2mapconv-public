@@ -12,6 +12,7 @@ add_executable(l2mapconv_tests
     RecentClientsTests.cpp
     ClientStartupTests.cpp
     ClientSessionTests.cpp
+    DesktopStartupTests.cpp
     ${CMAKE_SOURCE_DIR}/application/src/CameraMotion.cpp
     ${CMAKE_SOURCE_DIR}/application/src/ExecutablePath.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapCatalog.cpp
@@ -26,6 +27,7 @@ add_executable(l2mapconv_tests
     ${CMAKE_SOURCE_DIR}/application/src/RecentClients.cpp
     ${CMAKE_SOURCE_DIR}/application/src/ClientStartup.cpp
     ${CMAKE_SOURCE_DIR}/application/src/ClientSessionContext.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/DesktopStartup.cpp
     ${CMAKE_SOURCE_DIR}/application/src/UnrealLoader.cpp
 )
 

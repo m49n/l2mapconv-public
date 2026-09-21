@@ -114,7 +114,7 @@ auto choose_client_root_folder() -> std::optional<std::filesystem::path> {
     return std::nullopt;
   }
 
-  result = dialog->Show(nullptr);
+  result = dialog->Show(GetActiveWindow());
   if (result == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
     return std::nullopt;
   }
@@ -149,7 +149,7 @@ auto choose_client_root_folder() -> std::optional<std::filesystem::path> {
 void show_client_selection_error(std::string_view message) {
 #ifdef _WIN32
   const auto wide_message = utf8_to_wide(message);
-  MessageBoxW(nullptr, wide_message.c_str(), L"l2mapconv",
+  MessageBoxW(GetActiveWindow(), wide_message.c_str(), L"l2mapconv",
               MB_OK | MB_ICONERROR | MB_TASKMODAL);
 #else
   utils::Log(utils::LOG_ERROR, "App") << message << std::endl;

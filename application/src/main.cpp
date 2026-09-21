@@ -1,10 +1,97 @@
 #include "pch.h"
 
 #include "Application.h"
+#include "ClientFolderPicker.h"
+#include "ClientStartup.h"
 #include "CommandLine.h"
+#include "DesktopStartup.h"
 #include "ExecutablePath.h"
+#include "RecentClients.h"
+
+#include <cstdlib>
+
+namespace {
+
+auto local_app_data_root() -> std::optional<std::filesystem::path> {
+#ifdef _WIN32
+  const auto *value = _wgetenv(L"LOCALAPPDATA");
+  if (value == nullptr || *value == L'\0') {
+    return std::nullopt;
+  }
+  return std::filesystem::path{value};
+#else
+  const auto *value = std::getenv("LOCALAPPDATA");
+  if (value == nullptr || *value == '\0') {
+    return std::nullopt;
+  }
+  return std::filesystem::path{value};
+#endif
+}
+
+void save_recent_clients(
+    const RecentClients &recent_clients,
+    const std::optional<std::filesystem::path> &settings_file) {
+  if (settings_file && !recent_clients.save(*settings_file)) {
+    utils::Log(utils::LOG_WARN, "App")
+        << "Unable to save recent clients to " << *settings_file << std::endl;
+  }
+}
+
+auto run_preview_sessions(
+    const Application &application, RecentClients &recent_clients,
+    const std::optional<std::filesystem::path> &settings_file,
+    ClientStartupSelection selection, std::vector<std::string> maps) -> int {
+  while (true) {
+    recent_clients.promote(selection.client_root);
+    save_recent_clients(recent_clients, settings_file);
+
+    auto result = application.preview(selection.client_root, maps,
+                                      recent_clients.entries(),
+                                      choose_client_root_folder);
+    if (!result.requested_client) {
+      return EXIT_SUCCESS;
+    }
+
+    selection = std::move(*result.requested_client);
+    maps = {selection.seed_map};
+  }
+}
+
+auto run_desktop(const Application &application) -> int {
+  const auto settings_file =
+      recent_clients_settings_path(local_app_data_root());
+  auto recent_clients =
+      settings_file ? RecentClients::load(*settings_file) : RecentClients{};
+  if (!settings_file) {
+    utils::Log(utils::LOG_WARN, "App")
+        << "LOCALAPPDATA is unavailable; recent client persistence is "
+           "disabled"
+        << std::endl;
+  }
+
+  auto selection = choose_desktop_client(
+      recent_clients.entries(), choose_client_root_folder,
+      [](std::string_view message) { show_client_selection_error(message); });
+  if (!selection) {
+    return EXIT_SUCCESS;
+  }
+
+  std::vector<std::string> maps{selection->seed_map};
+  return run_preview_sessions(application, recent_clients, settings_file,
+                              std::move(*selection), std::move(maps));
+}
+
+} // namespace
 
 auto main(int argc, char **argv) -> int {
+  const Application application{running_executable_directory()};
+  const std::vector<std::string> arguments{argv, argv + argc};
+  if (is_desktop_invocation(arguments)) {
+    utils::Log::level = utils::LOG_INFO;
+    utils::Log::colored = false;
+    return run_desktop(application);
+  }
+
   // Define options
   cxxopts::Options options{argv[0]};
 
@@ -81,12 +168,33 @@ auto main(int argc, char **argv) -> int {
   }
 
   // Run application
-  const Application application{running_executable_directory()};
   if (preview) {
-    application.preview(client_root, maps);
-  } else if (build) {
-    application.build(client_root, maps);
-  } else {
-    ASSERT(false, "App", "Unknown command");
+    auto selection = inspect_client_root(client_root);
+    if (!selection) {
+      utils::Log(utils::LOG_ERROR)
+          << "Invalid Lineage II preview client path: " << client_root
+          << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    const auto settings_file =
+        recent_clients_settings_path(local_app_data_root());
+    auto recent_clients =
+        settings_file ? RecentClients::load(*settings_file) : RecentClients{};
+    if (!settings_file) {
+      utils::Log(utils::LOG_WARN, "App")
+          << "LOCALAPPDATA is unavailable; recent client persistence is "
+             "disabled"
+          << std::endl;
+    }
+    return run_preview_sessions(application, recent_clients, settings_file,
+                                std::move(*selection), maps);
   }
+  if (build) {
+    application.build(client_root, maps);
+    return EXIT_SUCCESS;
+  }
+
+  ASSERT(false, "App", "Unknown command");
+  return EXIT_FAILURE;
 }

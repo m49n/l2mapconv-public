@@ -22,6 +22,20 @@ Lineage II map previewer and geodata builder.
 
 ## Usage
 
+Double-click `l2mapconv.exe` to reopen the most recent valid client. On first
+launch, choose the client's `sam` directory. Desktop settings are stored under
+`%LOCALAPPDATA%\l2mapconv\settings.ini`; the client remains read-only.
+
+The `Client` window shows the active client root, a `Browse...` button, and up
+to ten recent client roots (newest first). Choosing a different root validates
+its map catalog, shuts the current loading/rendering session down cleanly, and
+then starts a fresh session. Desktop startup prefers `22_22` and otherwise
+opens the first sorted numeric map available in `Maps`.
+
+Command-line preview and build invocations remain available. In particular,
+`--build` never opens a folder picker and does not change the recent-client
+history.
+
 ```sh
 l2mapconv.exe --preview/build --client-root <path> -- [maps...]
 
