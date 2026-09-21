@@ -9,13 +9,15 @@ Lineage II map previewer and geodata builder.
 
 - Supported geodata generation clients: C1, HF.
 - Supported geodata format: L2J.
-- Experimental map preview: Essence P542, verified with Samurai Crow EU map
-  `19_21`.
+- Experimental map preview: Essence P542, verified with Samurai Crow EU maps,
+  including dynamic streaming around `22_22`.
 
 ## Features
 
-- Map and geodata preview.
+- Map and geodata preview with a discoverable map catalog.
 - Collisionless six-axis free camera with geometry filters.
+- Manual terrain selection plus automatic full-detail streaming for the current
+  map and, optionally, its immediate neighbours.
 - L2J geodata building.
 
 ## Usage
@@ -35,11 +37,11 @@ l2mapconv.exe --preview/build --client-root <path> -- [maps...]
 
 ## P542 map preview
 
-The geometry-only profile has been verified locally with `19_21` from the
+The geometry-only profile has been verified locally with `22_22` from the
 Lineage II Essence Samurai Crow EU P542 client:
 
 ```powershell
-.\build\preview-core\install\l2mapconv.exe --preview --log-level 4 --client-root "D:\line\clients\Lineage II - Essence - Samurai Crow - EU-P542\sam" -- 19_21
+.\build\preview-core\install\l2mapconv.exe --preview --log-level 4 --client-root "D:\line\clients\Lineage II - Essence - Samurai Crow - EU-P542\sam" -- 22_22
 ```
 
 Controls:
@@ -49,9 +51,27 @@ Controls:
 - `Space` and `Left Ctrl` move vertically.
 - `Left Shift` accelerates and `Left Alt` slows movement.
 - `M` toggles wireframe rendering.
-- The Rendering window shows world coordinates, camera speed, mouse
-  sensitivity, and independent visibility switches for terrain, static
-  meshes, CSG, and Blocking Volumes.
+- The Maps window lists every numeric `Maps/*.unr` region found in the client.
+  Individual checkboxes pin terrain-only regions; `Select All` and
+  `Clear Manual` make whole-world terrain inspection practical without loading
+  every static mesh. Each cell suffix reports its state: `-` unloaded,
+  `Q` queued, `L` loading, `T` terrain resident, `D` detail resident, and
+  `!` failed.
+- The Rendering window shows the map under the camera and controls automatic
+  full-detail loading for the current map. `Include +1 neighbors` independently
+  enables or disables the surrounding 3x3 detail neighbourhood. It also shows
+  world coordinates, camera speed, mouse sensitivity, and independent
+  visibility switches for terrain, static meshes, CSG, and Blocking Volumes.
+- The Maps summary reports manual selections, terrain/detail residents, and
+  queued/loading/failed work while the background loader keeps the viewer
+  responsive.
+
+For a first whole-world pass, use the texture-disabled `preview-core` build,
+press `Select All`, and leave automatic current-map loading enabled. All
+selected maps are then kept as terrain-only geometry while the current map (and
+the optional `+1` ring) retains full detail. The texture-enabled profile remains
+useful for targeted smoke tests, but is not the recommended way to load the
+whole world.
 
 Preview treats the client as read-only input. Debug logging does not dump
 decrypted packages, and automatic ImGui settings persistence is disabled so
@@ -61,8 +81,15 @@ Unsupported or missing P542 texture references are logged and fall back to
 surface colors; use the geometry-only profile when inspecting collision
 geometry.
 
+The Geodata `Reset` and `Build` buttons are disabled in streamed preview mode:
+the visible scene may contain terrain-only regions and is not a complete
+generation input. The command-line `--build` workflow is unchanged and remains
+the only complete-map generation path.
+
 P542 geodata generation has not been validated yet. The current P542 scope is
 map inspection, not a claim that generated geodata is ready for a live server.
+Texture-complete terrain preview and high-resolution radar-map export are
+separate future work, outside this milestone.
 
 ## Project building
 
