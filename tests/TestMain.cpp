@@ -1,7 +1,10 @@
-#include "CommandLine.h"
 #include "CameraMotion.h"
-#include "TestSupport.h"
+#include "CommandLine.h"
+#include "ExecutablePath.h"
+#include "SceneStats.h"
 #include "SurfaceVisibility.h"
+#include "TestSupport.h"
+#include "UISettings.h"
 #include "UnrealConverters.h"
 
 #include <filesystem>
@@ -16,7 +19,7 @@ auto near(const glm::vec3 &actual, const glm::vec3 &expected,
 
 } // namespace
 
-auto main() -> int {
+auto main(int /*argc*/, char **argv) -> int {
   auto failures = 0;
 
   failures += expect(true, "test harness accepts successes");
@@ -25,11 +28,14 @@ auto main() -> int {
   failures += expect(client_root_path(client_root) ==
                          std::filesystem::path{client_root},
                      "client root preserves spaces");
-  failures += expect(
-      executable_directory(
-          R"(D:\viewer builds\p542\l2mapconv.exe)") ==
-          std::filesystem::path{R"(D:\viewer builds\p542)"},
-      "renderer resources resolve beside the executable");
+  const auto executable_path = running_executable_path();
+  failures += expect(std::filesystem::is_regular_file(executable_path),
+                     "running executable path resolves to an existing file");
+  failures += expect(executable_path.filename() ==
+                         std::filesystem::path{argv[0]}.filename(),
+                     "running executable path identifies the current module");
+  failures += expect(imgui_ini_filename() == nullptr,
+                     "preview never writes automatic ImGui settings");
   failures += expect(primary_uv({}, 0) == glm::vec2{0.0f, 0.0f},
                      "missing UV stream uses zero UV");
 
@@ -46,57 +52,53 @@ auto main() -> int {
   const glm::vec3 right{1.0f, 0.0f, 0.0f};
   const glm::vec3 up{0.0f, 0.0f, 1.0f};
 
-  failures += expect(
-      near(camera_translation({.forward = true}, forward, right, up, 0.05f,
-                              1000.0f),
-           {0.0f, -50.0f, 0.0f}),
-      "forward movement uses base speed and frame time");
+  failures += expect(near(camera_translation({.forward = true}, forward, right,
+                                             up, 0.05f, 1000.0f),
+                          {0.0f, -50.0f, 0.0f}),
+                     "forward movement uses base speed and frame time");
 
-  const auto diagonal = camera_translation(
-      {.forward = true, .right = true}, forward, right, up, 0.05f, 1000.0f);
+  const auto diagonal = camera_translation({.forward = true, .right = true},
+                                           forward, right, up, 0.05f, 1000.0f);
   failures += expect(std::abs(glm::length(diagonal) - 50.0f) < 0.001f,
                      "diagonal movement is normalized");
 
   failures += expect(
-      near(camera_translation({.up = true}, forward, right, up, 0.05f,
-                              1000.0f),
+      near(camera_translation({.up = true}, forward, right, up, 0.05f, 1000.0f),
            {0.0f, 0.0f, 50.0f}),
       "up movement follows the camera up vector");
-  failures += expect(
-      near(camera_translation({.down = true}, forward, right, up, 0.05f,
-                              1000.0f),
-           {0.0f, 0.0f, -50.0f}),
-      "down movement opposes the camera up vector");
+  failures += expect(near(camera_translation({.down = true}, forward, right, up,
+                                             0.05f, 1000.0f),
+                          {0.0f, 0.0f, -50.0f}),
+                     "down movement opposes the camera up vector");
 
+  failures += expect(near(camera_translation({.forward = true, .fast = true},
+                                             forward, right, up, 0.01f, 100.0f),
+                          {0.0f, -10.0f, 0.0f}),
+                     "fast movement uses the ten-times multiplier");
+  failures += expect(near(camera_translation({.forward = true, .slow = true},
+                                             forward, right, up, 0.01f, 100.0f),
+                          {0.0f, -0.2f, 0.0f}),
+                     "slow movement uses the one-fifth multiplier");
   failures += expect(
-      near(camera_translation({.forward = true, .fast = true}, forward,
-                              right, up, 0.01f, 100.0f),
-           {0.0f, -10.0f, 0.0f}),
-      "fast movement uses the ten-times multiplier");
-  failures += expect(
-      near(camera_translation({.forward = true, .slow = true}, forward,
-                              right, up, 0.01f, 100.0f),
-           {0.0f, -0.2f, 0.0f}),
-      "slow movement uses the one-fifth multiplier");
-  failures += expect(
-      near(camera_translation(
-               {.forward = true, .fast = true, .slow = true}, forward, right,
-               up, 0.01f, 100.0f),
+      near(camera_translation({.forward = true, .fast = true, .slow = true},
+                              forward, right, up, 0.01f, 100.0f),
            {0.0f, -2.0f, 0.0f}),
       "fast and slow modifiers compose");
 
-  failures += expect(
-      near(camera_translation({.forward = true}, forward, right, up, 1.0f,
-                              100.0f),
-           {0.0f, -10.0f, 0.0f}),
-      "frame time is clamped to one tenth of a second");
-  failures += expect(
-      near(camera_translation({.forward = true, .backward = true,
-                               .left = true, .right = true,
-                               .up = true, .down = true},
-                              forward, right, up, 0.05f, 1000.0f),
-           {0.0f, 0.0f, 0.0f}),
-      "opposing inputs cancel");
+  failures += expect(near(camera_translation({.forward = true}, forward, right,
+                                             up, 1.0f, 100.0f),
+                          {0.0f, -10.0f, 0.0f}),
+                     "frame time is clamped to one tenth of a second");
+  failures +=
+      expect(near(camera_translation({.forward = true,
+                                      .backward = true,
+                                      .left = true,
+                                      .right = true,
+                                      .up = true,
+                                      .down = true},
+                                     forward, right, up, 0.05f, 1000.0f),
+                  {0.0f, 0.0f, 0.0f}),
+             "opposing inputs cancel");
 
   failures += expect(surface_filter({.passable = true}) == SURFACE_PASSABLE,
                      "passable visibility adds only its modifier bit");
@@ -110,15 +112,62 @@ auto main() -> int {
   failures += expect(surface_filter({.blocking_volumes = true}) ==
                          SURFACE_BLOCKING_VOLUME,
                      "blocking volume visibility adds only its own bit");
-  failures += expect(surface_filter({.bounding_boxes = true}) ==
-                         SURFACE_BOUNDING_BOX,
-                     "bounding box visibility adds only its own bit");
+  failures +=
+      expect(surface_filter({.bounding_boxes = true}) == SURFACE_BOUNDING_BOX,
+             "bounding box visibility adds only its own bit");
   failures += expect(surface_filter({.imported_geodata = true}) ==
                          SURFACE_IMPORTED_GEODATA,
                      "imported geodata visibility adds only its own bit");
   failures += expect(surface_filter({.generated_geodata = true}) ==
                          SURFACE_GENERATED_GEODATA,
                      "generated geodata visibility adds only its own bit");
+
+  Map scene{};
+  const auto add_geometry = [&scene](std::uint64_t type,
+                                     std::size_t triangle_count) {
+    auto mesh = std::make_shared<EntityMesh>();
+    mesh->vertices.resize(3);
+    mesh->indices.resize(triangle_count * 3);
+    mesh->surfaces.push_back({.type = type,
+                              .index_offset = 0,
+                              .index_count = triangle_count * 3,
+                              .material = {}});
+    scene.entities.emplace_back(std::move(mesh));
+  };
+
+  add_geometry(SURFACE_TERRAIN, 2);
+  add_geometry(SURFACE_STATIC_MESH | SURFACE_PASSABLE, 3);
+  add_geometry(SURFACE_CSG, 4);
+  add_geometry(SURFACE_BLOCKING_VOLUME, 5);
+
+  auto bounding_box = std::make_shared<EntityMesh>();
+  bounding_box->vertices.resize(8);
+  bounding_box->indices.resize(36);
+  bounding_box->surfaces.push_back(
+      {.type = SURFACE_TERRAIN | SURFACE_BOUNDING_BOX,
+       .index_offset = 0,
+       .index_count = 36,
+       .material = {}});
+  scene.entities.emplace_back(std::move(bounding_box));
+
+  auto stats = map_geometry_stats(scene);
+  failures += expect(stats.terrain.actors == 1 && stats.terrain.vertices == 3 &&
+                         stats.terrain.triangles == 2,
+                     "terrain statistics exclude bounding boxes");
+  failures += expect(stats.static_meshes.actors == 1 &&
+                         stats.static_meshes.triangles == 3,
+                     "static mesh statistics accept modifier bits");
+  failures += expect(stats.csg.actors == 1 && stats.csg.triangles == 4,
+                     "CSG statistics count loaded geometry");
+  failures += expect(stats.blocking_volumes.actors == 1 &&
+                         stats.blocking_volumes.triangles == 5,
+                     "blocking volume statistics count loaded geometry");
+  failures += expect(has_required_preview_geometry(stats),
+                     "complete preview geometry passes verification");
+
+  stats.blocking_volumes.triangles = 0;
+  failures += expect(!has_required_preview_geometry(stats),
+                     "missing preview geometry fails verification");
 
   return failures;
 }

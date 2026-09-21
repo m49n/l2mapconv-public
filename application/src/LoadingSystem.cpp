@@ -2,7 +2,20 @@
 
 #include "GeodataEntityFactory.h"
 #include "LoadingSystem.h"
+#include "SceneStats.h"
 #include "UnrealLoader.h"
+
+namespace {
+
+void log_geometry_stats(const std::string &map_name, const char *class_name,
+                        const GeometryClassStats &stats) {
+  utils::Log(utils::LOG_INFO, "App")
+      << "Geometry map=" << map_name << " class=" << class_name
+      << " actors=" << stats.actors << " vertices=" << stats.vertices
+      << " triangles=" << stats.triangles << std::endl;
+}
+
+} // namespace
 
 LoadingSystem::LoadingSystem(GeodataContext &geodata_context,
                              const Renderer *renderer,
@@ -25,6 +38,21 @@ LoadingSystem::LoadingSystem(GeodataContext &geodata_context,
     // Load map entities
     auto map = unreal_loader.load_map(map_name);
     map.name = map_name;
+
+    const auto geometry_stats = map_geometry_stats(map);
+    log_geometry_stats(map_name, "terrain", geometry_stats.terrain);
+    log_geometry_stats(map_name, "static_mesh", geometry_stats.static_meshes);
+    log_geometry_stats(map_name, "csg", geometry_stats.csg);
+    log_geometry_stats(map_name, "blocking_volume",
+                       geometry_stats.blocking_volumes);
+
+    const auto geometry_complete =
+        has_required_preview_geometry(geometry_stats);
+    utils::Log(geometry_complete ? utils::LOG_INFO : utils::LOG_WARN, "App")
+        << "Geometry verification map=" << map_name
+        << " required=terrain,static_mesh,csg,blocking_volume result="
+        << (geometry_complete ? "pass" : "incomplete") << std::endl;
+
     maps.push_back(map);
 
     if (m_renderer == nullptr) {

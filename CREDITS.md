@@ -2,8 +2,10 @@
 
 ## Project history and contributors
 
-- Michael Spencer (`m49n`) is credited by the project MIT license (2011) and
-  maintains the original public repository used as the publication target.
+- Michael Spencer (`Bigcheese`) is credited by the project MIT license (2011)
+  and authored the historical L2PackageTools reference.
+- `m49n` maintains the original public repository used as the publication
+  target.
 - Roman Madyanov is credited by the project MIT license (2020) and authored the
   original implementation history plus most of the later C++ and L2J geodata
   builder work.

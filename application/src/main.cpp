@@ -2,6 +2,7 @@
 
 #include "Application.h"
 #include "CommandLine.h"
+#include "ExecutablePath.h"
 
 auto main(int argc, char **argv) -> int {
   // Define options
@@ -80,7 +81,7 @@ auto main(int argc, char **argv) -> int {
   }
 
   // Run application
-  const Application application{executable_directory(argv[0])};
+  const Application application{running_executable_directory()};
   if (preview) {
     application.preview(client_root, maps);
   } else if (build) {

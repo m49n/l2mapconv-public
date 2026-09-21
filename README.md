@@ -54,9 +54,12 @@ Controls:
   meshes, CSG, and Blocking Volumes.
 
 Preview treats the client as read-only input. Debug logging does not dump
-decrypted packages. Unsupported or missing P542 texture references are logged
-and fall back to surface colors; use the geometry-only profile when inspecting
-collision geometry.
+decrypted packages, and automatic ImGui settings persistence is disabled so
+the current working directory is not modified. The log reports actor, vertex,
+and triangle counts for terrain, static meshes, CSG, and Blocking Volumes.
+Unsupported or missing P542 texture references are logged and fall back to
+surface colors; use the geometry-only profile when inspecting collision
+geometry.
 
 P542 geodata generation has not been validated yet. The current P542 scope is
 map inspection, not a claim that generated geodata is ready for a live server.

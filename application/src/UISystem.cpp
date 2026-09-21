@@ -1,5 +1,6 @@
 #include "pch.h"
 
+#include "UISettings.h"
 #include "UISystem.h"
 
 UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
@@ -13,6 +14,7 @@ UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
   IMGUI_CHECKVERSION();
 
   ImGui::CreateContext();
+  ImGui::GetIO().IniFilename = imgui_ini_filename();
   ImGui_ImplGlfw_InitForOpenGL(m_window_context.window_handle, true);
   ImGui_ImplOpenGL3_Init();
 
@@ -59,11 +61,10 @@ void UISystem::rendering_window(Timestep frame_time) const {
   ImGui::Text("\tx: %d", static_cast<int>(camera_position.x));
   ImGui::Text("\ty: %d", static_cast<int>(camera_position.y));
   ImGui::Text("\tz: %d", static_cast<int>(camera_position.z));
-  ImGui::InputFloat("Camera Speed", &m_ui_context.camera.speed, 100.0f,
-                    1000.0f, "%.0f");
-  ImGui::InputFloat("Mouse Sensitivity",
-                    &m_ui_context.camera.mouse_sensitivity, 0.0001f, 0.001f,
-                    "%.4f");
+  ImGui::InputFloat("Camera Speed", &m_ui_context.camera.speed, 100.0f, 1000.0f,
+                    "%.0f");
+  ImGui::InputFloat("Mouse Sensitivity", &m_ui_context.camera.mouse_sensitivity,
+                    0.0001f, 0.001f, "%.4f");
   ImGui::TextUnformatted(
       "RMB look | WASD move | Space/Ctrl vertical | Shift fast | Alt slow | "
       "M wireframe");
@@ -76,8 +77,7 @@ void UISystem::rendering_window(Timestep frame_time) const {
   ImGui::Checkbox("Terrain", &m_ui_context.rendering.terrain);
   ImGui::Checkbox("Static Meshes", &m_ui_context.rendering.static_meshes);
   ImGui::Checkbox("CSG", &m_ui_context.rendering.csg);
-  ImGui::Checkbox("Blocking Volumes",
-                  &m_ui_context.rendering.blocking_volumes);
+  ImGui::Checkbox("Blocking Volumes", &m_ui_context.rendering.blocking_volumes);
   ImGui::Checkbox("Bounding Boxes", &m_ui_context.rendering.bounding_boxes);
   ImGui::Checkbox("Imported Geodata", &m_ui_context.rendering.imported_geodata);
   ImGui::Checkbox("Generated Geodata",
