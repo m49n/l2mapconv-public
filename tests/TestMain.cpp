@@ -60,6 +60,7 @@ auto main(int argc, char **argv) -> int {
   failures += run_map_streaming_tests();
   failures += run_system_stack_tests();
   failures += run_imported_geodata_tests();
+  failures += run_recent_clients_tests();
 
   unreal::StaticMeshUVStream stream{};
   stream.uvs.push_back({0.25f, 0.75f});
