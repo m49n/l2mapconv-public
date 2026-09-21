@@ -1,7 +1,14 @@
-#include "pch.h"
-
 #include "UnrealConverters.h"
 #include "UnrealLoader.h"
+
+#include <utils/Assert.h>
+#include <utils/Log.h>
+
+#include <unreal/Level.h>
+
+#include <iterator>
+#include <sstream>
+#include <utility>
 
 UnrealLoader::UnrealLoader(const std::filesystem::path &root_path)
     : m_package_loader{root_path,
@@ -10,7 +17,8 @@ UnrealLoader::UnrealLoader(const std::filesystem::path &root_path)
                         unreal::SearchConfig{"Textures", "utx"},
                         unreal::SearchConfig{"SysTextures", "utx"}}} {}
 
-auto UnrealLoader::load_map(const std::string &name) const -> Map {
+auto UnrealLoader::load_map(const std::string &name,
+                            MapLoadOptions options) const -> Map {
   Map map{};
 
   const auto optional_package = m_package_loader.load_package(name);
@@ -31,7 +39,7 @@ auto UnrealLoader::load_map(const std::string &name) const -> Map {
       to_vec3(terrain->bounding_box().max) * scale + map.position};
 
 #ifdef LOAD_TERRAIN
-  if (!terrain->broken_scale()) {
+  if (options.terrain && !terrain->broken_scale()) {
     const auto terrain_entities = load_terrain_entities(*terrain);
     map.entities.insert(map.entities.end(),
                         std::make_move_iterator(terrain_entities.begin()),
@@ -40,22 +48,29 @@ auto UnrealLoader::load_map(const std::string &name) const -> Map {
 #endif
 
   // Mesh actors
-  const auto mesh_actor_entities = load_mesh_actor_entities(package);
-  map.entities.insert(map.entities.end(),
-                      std::make_move_iterator(mesh_actor_entities.begin()),
-                      std::make_move_iterator(mesh_actor_entities.end()));
+  if (options.static_meshes) {
+    const auto mesh_actor_entities = load_mesh_actor_entities(package);
+    map.entities.insert(map.entities.end(),
+                        std::make_move_iterator(mesh_actor_entities.begin()),
+                        std::make_move_iterator(mesh_actor_entities.end()));
+  }
 
   // BSPs
-  const auto bsp_entities = load_bsp_entities(package, map.bounding_box);
-  map.entities.insert(map.entities.end(),
-                      std::make_move_iterator(bsp_entities.begin()),
-                      std::make_move_iterator(bsp_entities.end()));
+  if (options.csg) {
+    const auto bsp_entities = load_bsp_entities(package, map.bounding_box);
+    map.entities.insert(map.entities.end(),
+                        std::make_move_iterator(bsp_entities.begin()),
+                        std::make_move_iterator(bsp_entities.end()));
+  }
 
   // Volumes
-  const auto volume_entities = load_volume_entities(package, map.bounding_box);
-  map.entities.insert(map.entities.end(),
-                      std::make_move_iterator(volume_entities.begin()),
-                      std::make_move_iterator(volume_entities.end()));
+  if (options.blocking_volumes) {
+    const auto volume_entities =
+        load_volume_entities(package, map.bounding_box);
+    map.entities.insert(map.entities.end(),
+                        std::make_move_iterator(volume_entities.begin()),
+                        std::make_move_iterator(volume_entities.end()));
+  }
 
   return map;
 }

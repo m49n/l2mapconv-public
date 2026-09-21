@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 
 struct GeometryClassStats {
   std::size_t actors{};
@@ -88,4 +89,39 @@ inline auto has_required_preview_geometry(const MapGeometryStats &stats)
 
   return present(stats.terrain) && present(stats.static_meshes) &&
          present(stats.csg) && present(stats.blocking_volumes);
+}
+
+inline auto map_contains_only(const Map &map, std::uint64_t allowed_types)
+    -> bool {
+  constexpr auto base_types = SURFACE_TERRAIN | SURFACE_STATIC_MESH |
+                              SURFACE_CSG | SURFACE_IMPORTED_GEODATA |
+                              SURFACE_GENERATED_GEODATA |
+                              SURFACE_BLOCKING_VOLUME;
+  for (const auto &entity : map.entities) {
+    if (entity.mesh == nullptr) {
+      return false;
+    }
+    for (const auto &surface : entity.mesh->surfaces) {
+      const auto surface_base = surface.type & base_types;
+      if (surface_base == 0 || (surface_base & ~allowed_types) != 0) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+inline void print_scene_stats(const Map &map,
+                              std::ostream &output = std::cout) {
+  const auto stats = map_geometry_stats(map);
+  const auto print = [&output](const char *name,
+                               const GeometryClassStats &value) {
+    output << name << " actors=" << value.actors
+           << " vertices=" << value.vertices
+           << " triangles=" << value.triangles << '\n';
+  };
+  print("terrain", stats.terrain);
+  print("static_mesh", stats.static_meshes);
+  print("csg", stats.csg);
+  print("blocking_volume", stats.blocking_volumes);
 }

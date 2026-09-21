@@ -2,6 +2,7 @@
 
 #include "Entity.h"
 #include "Map.h"
+#include "MapLoadOptions.h"
 
 #include <unreal/Actor.h>
 #include <unreal/BSP.h>
@@ -24,7 +25,8 @@ class UnrealLoader {
 public:
   explicit UnrealLoader(const std::filesystem::path &root_path);
 
-  auto load_map(const std::string &name) const -> Map;
+  auto load_map(const std::string &name,
+                MapLoadOptions options = MapLoadOptions::full()) const -> Map;
 
 private:
   unreal::PackageLoader m_package_loader;

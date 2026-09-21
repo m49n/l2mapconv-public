@@ -2,6 +2,7 @@
 
 #include "GeodataEntityFactory.h"
 #include "LoadingSystem.h"
+#include "MapLoadOptions.h"
 #include "SceneStats.h"
 #include "UnrealLoader.h"
 
@@ -36,7 +37,7 @@ LoadingSystem::LoadingSystem(GeodataContext &geodata_context,
         << "Loading map: " << map_name << std::endl;
 
     // Load map entities
-    auto map = unreal_loader.load_map(map_name);
+    auto map = unreal_loader.load_map(map_name, MapLoadOptions::full());
     map.name = map_name;
 
     const auto geometry_stats = map_geometry_stats(map);
