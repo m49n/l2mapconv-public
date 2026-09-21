@@ -42,10 +42,6 @@ auto ArchiveLoader::load_and_cache_archive(
   const Decryptor decryptor;
   decryptor.decrypt(path, decrypted);
 
-  if (utils::Log::level > utils::LOG_INFO) {
-    dump_decrypted(path, decrypted);
-  }
-
   const auto inserted =
       m_archives.try_emplace(name, name, std::move(decrypted), *this);
   auto *archive = &inserted.first->second;
@@ -57,18 +53,4 @@ auto ArchiveLoader::load_and_cache_archive(
 
   return archive;
 }
-
-void ArchiveLoader::dump_decrypted(const std::filesystem::path &path,
-                                   const std::stringstream &decrypted) const {
-
-  auto output_path = path.filename();
-  output_path += ".dec";
-  std::ofstream output{output_path};
-
-  utils::Log(utils::LOG_DEBUG, "Unreal")
-      << "Decrypted package: " << output_path << std::endl;
-
-  output << decrypted.str();
-}
-
 } // namespace unreal

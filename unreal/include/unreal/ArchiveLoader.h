@@ -37,9 +37,6 @@ private:
   auto load_and_cache_archive(const std::string &name,
                               const std::filesystem::path &path) const
       -> Archive *;
-
-  void dump_decrypted(const std::filesystem::path &path,
-                      const std::stringstream &decrypted) const;
 };
 
 } // namespace unreal
