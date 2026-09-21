@@ -23,6 +23,7 @@ add_executable(${PROJECT_NAME}
     src/RendererMapSceneSink.cpp
     src/ImportedGeodataLoader.cpp
     src/RecentClients.cpp
+    src/ClientStartup.cpp
     src/UnrealMapSource.cpp
     src/LoadingSystem.cpp
     src/GeodataSystem.cpp
