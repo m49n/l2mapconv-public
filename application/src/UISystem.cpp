@@ -3,6 +3,37 @@
 #include "UISettings.h"
 #include "UISystem.h"
 
+#include <string>
+
+namespace {
+
+auto map_state_label(const MapSelectionContext &selection,
+                     MapCoordinate coordinate) -> const char * {
+  const auto detail = selection.status(coordinate, MapLayer::Detail);
+  const auto terrain = selection.status(coordinate, MapLayer::Terrain);
+  if (detail == MapResidencyStatus::Failed ||
+      terrain == MapResidencyStatus::Failed) {
+    return "!";
+  }
+  if (detail == MapResidencyStatus::Loading ||
+      terrain == MapResidencyStatus::Loading) {
+    return "L";
+  }
+  if (detail == MapResidencyStatus::Queued ||
+      terrain == MapResidencyStatus::Queued) {
+    return "Q";
+  }
+  if (detail == MapResidencyStatus::Resident) {
+    return "D";
+  }
+  if (terrain == MapResidencyStatus::Resident) {
+    return "T";
+  }
+  return "-";
+}
+
+} // namespace
+
 UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
                    RenderingContext &rendering_context)
     : m_ui_context{ui_context}, m_window_context{window_context},
@@ -27,6 +58,13 @@ UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
   m_ui_context.geodata.set_defaults();
 }
 
+UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
+                   RenderingContext &rendering_context,
+                   MapSelectionContext &map_selection_context)
+    : UISystem{ui_context, window_context, rendering_context} {
+  m_map_selection_context = &map_selection_context;
+}
+
 UISystem::~UISystem() {
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
@@ -38,6 +76,9 @@ void UISystem::frame_begin(Timestep frame_time) {
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
+  if (m_map_selection_context != nullptr) {
+    maps_window();
+  }
   rendering_window(frame_time);
   geodata_window();
 }
@@ -61,6 +102,20 @@ void UISystem::rendering_window(Timestep frame_time) const {
   ImGui::Text("\tx: %d", static_cast<int>(camera_position.x));
   ImGui::Text("\ty: %d", static_cast<int>(camera_position.y));
   ImGui::Text("\tz: %d", static_cast<int>(camera_position.z));
+  if (m_map_selection_context != nullptr) {
+    ImGui::Text("Current map: %s",
+                m_map_selection_context->current_label().c_str());
+    auto auto_load = m_map_selection_context->auto_load();
+    if (ImGui::Checkbox("Auto-load current map", &auto_load)) {
+      m_map_selection_context->set_auto_load(auto_load);
+    }
+    auto include_neighbors = m_map_selection_context->include_neighbors();
+    ImGui::BeginDisabled(!auto_load);
+    if (ImGui::Checkbox("Include +1 neighbors", &include_neighbors)) {
+      m_map_selection_context->set_include_neighbors(include_neighbors);
+    }
+    ImGui::EndDisabled();
+  }
   ImGui::InputFloat("Camera Speed", &m_ui_context.camera.speed, 100.0f, 1000.0f,
                     "%.0f");
   ImGui::InputFloat("Mouse Sensitivity", &m_ui_context.camera.mouse_sensitivity,
@@ -85,8 +140,85 @@ void UISystem::rendering_window(Timestep frame_time) const {
   ImGui::End();
 }
 
+void UISystem::maps_window() const {
+  auto &selection = *m_map_selection_context;
+  const auto &catalog = selection.catalog();
+  const auto summary = selection.summary();
+
+  ImGui::Begin("Maps");
+  if (ImGui::Button("Select All")) {
+    selection.select_all_manual();
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Clear Manual")) {
+    selection.clear_manual();
+  }
+
+  ImGui::Text("Manual: %zu | Terrain: %zu | Detail: %zu",
+              summary.manual_selected, summary.terrain_resident,
+              summary.detail_resident);
+  ImGui::Text("Queued: %zu | Loading: %zu | Failed: %zu", summary.queued,
+              summary.loading, summary.failed);
+  ImGui::TextUnformatted("State: - unloaded | Q queued | L loading | T terrain "
+                         "| D detail | ! failed");
+
+  if (!catalog.regions().empty()) {
+    const auto extents = catalog.extents();
+    const auto x_count = extents.max_x - extents.min_x + 1;
+    const auto column_count = x_count + 1;
+    constexpr auto column_width = 86.0f;
+    const auto flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                       ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
+                       ImGuiTableFlags_SizingFixedFit;
+    if (ImGui::BeginTable("MapGrid", column_count, flags, {0.0f, 420.0f},
+                          column_count * column_width)) {
+      ImGui::TableSetupScrollFreeze(1, 1);
+      ImGui::TableSetupColumn("Y \\ X", ImGuiTableColumnFlags_WidthFixed,
+                              48.0f);
+      for (auto x = extents.min_x; x <= extents.max_x; ++x) {
+        const auto label = std::to_string(x);
+        ImGui::TableSetupColumn(label.c_str(), ImGuiTableColumnFlags_WidthFixed,
+                                column_width);
+      }
+      ImGui::TableHeadersRow();
+
+      for (auto y = extents.min_y; y <= extents.max_y; ++y) {
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::Text("%d", y);
+        for (auto x = extents.min_x; x <= extents.max_x; ++x) {
+          ImGui::TableSetColumnIndex(x - extents.min_x + 1);
+          const MapCoordinate coordinate{x, y};
+          const auto *region = catalog.find(coordinate);
+          if (region == nullptr) {
+            continue;
+          }
+
+          auto selected = selection.manual_selection().contains(coordinate);
+          const auto id =
+              "##map_" + std::to_string(x) + "_" + std::to_string(y);
+          if (ImGui::Checkbox(id.c_str(), &selected)) {
+            selection.set_manual(coordinate, selected);
+          }
+          ImGui::SameLine();
+          ImGui::Text("%s %s", region->name.c_str(),
+                      map_state_label(selection, coordinate));
+        }
+      }
+      ImGui::EndTable();
+    }
+  }
+  ImGui::End();
+}
+
 void UISystem::geodata_window() const {
   ImGui::Begin("Geodata", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+  if (m_ui_context.geodata.streaming_preview) {
+    ImGui::TextWrapped(
+        "Streamed preview geometry is not a geodata generation input. Use "
+        "the CLI --build workflow for complete map geometry.");
+  }
 
   ImGui::PushItemWidth(50);
   ImGui::InputFloat("Actor Height", &m_ui_context.geodata.actor_height);
@@ -100,6 +232,7 @@ void UISystem::geodata_window() const {
   ImGui::InputFloat("Cell Size", &m_ui_context.geodata.cell_size);
   ImGui::InputFloat("Cell Height", &m_ui_context.geodata.cell_height);
 
+  ImGui::BeginDisabled(m_ui_context.geodata.streaming_preview);
   if (ImGui::Button("Reset")) {
     m_ui_context.geodata.set_defaults();
 
@@ -115,6 +248,7 @@ void UISystem::geodata_window() const {
            "Geodata build handler must be defined");
     m_ui_context.geodata.build_handler();
   }
+  ImGui::EndDisabled();
 
   ImGui::SameLine();
 

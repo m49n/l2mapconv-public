@@ -15,6 +15,7 @@ add_executable(${PROJECT_NAME}
     src/MapCatalog.cpp
     src/MapGridTransform.cpp
     src/MapResidency.cpp
+    src/MapSelectionContext.cpp
     src/LoadingSystem.cpp
     src/GeodataSystem.cpp
 

@@ -43,6 +43,7 @@ struct UIContext {
 
     std::function<void()> build_handler;
     bool should_export;
+    bool streaming_preview{false};
 
     void set_defaults() {
       actor_height = 48.0f;

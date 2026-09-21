@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MapSelectionContext.h"
 #include "RenderingContext.h"
 #include "System.h"
 #include "Timestep.h"
@@ -10,6 +11,9 @@ class UISystem : public System {
 public:
   explicit UISystem(UIContext &ui_context, WindowContext &window_context,
                     RenderingContext &rendering_context);
+  explicit UISystem(UIContext &ui_context, WindowContext &window_context,
+                    RenderingContext &rendering_context,
+                    MapSelectionContext &map_selection_context);
   virtual ~UISystem();
 
   virtual void frame_begin(Timestep frame_time) override;
@@ -19,7 +23,9 @@ private:
   UIContext &m_ui_context;
   WindowContext &m_window_context;
   RenderingContext &m_rendering_context;
+  MapSelectionContext *m_map_selection_context{nullptr};
 
   void rendering_window(Timestep frame_time) const;
+  void maps_window() const;
   void geodata_window() const;
 };
