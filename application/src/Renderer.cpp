@@ -2,10 +2,12 @@
 
 #include "Renderer.h"
 
-Renderer::Renderer(RenderingContext &rendering_context)
+Renderer::Renderer(RenderingContext &rendering_context,
+                   const std::filesystem::path &resource_root)
     : m_rendering_context{rendering_context},
-      m_shader_loader{m_rendering_context.context, "shaders"},
-      m_texture_loader{m_rendering_context.context, "textures"} {}
+      m_shader_loader{m_rendering_context.context, resource_root / "shaders"},
+      m_texture_loader{m_rendering_context.context,
+                       resource_root / "textures"} {}
 
 void Renderer::render_maps(const std::vector<Map> &maps) const {
   const auto entity_shader = m_shader_loader.load_entity_shader("entity");

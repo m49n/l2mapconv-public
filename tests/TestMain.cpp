@@ -25,6 +25,11 @@ auto main() -> int {
   failures += expect(client_root_path(client_root) ==
                          std::filesystem::path{client_root},
                      "client root preserves spaces");
+  failures += expect(
+      executable_directory(
+          R"(D:\viewer builds\p542\l2mapconv.exe)") ==
+          std::filesystem::path{R"(D:\viewer builds\p542)"},
+      "renderer resources resolve beside the executable");
   failures += expect(primary_uv({}, 0) == glm::vec2{0.0f, 0.0f},
                      "missing UV stream uses zero UV");
 

@@ -13,7 +13,8 @@
 #include "WindowContext.h"
 #include "WindowSystem.h"
 
-Application::Application() {}
+Application::Application(std::filesystem::path resource_root)
+    : m_resource_root{std::move(resource_root)} {}
 
 void Application::preview(const std::filesystem::path &client_root,
                           const std::vector<std::string> &maps) const {
@@ -28,7 +29,7 @@ void Application::preview(const std::filesystem::path &client_root,
     RenderingContext rendering_context{};
     GeodataContext geodata_context{};
 
-    Renderer renderer{rendering_context};
+    Renderer renderer{rendering_context, m_resource_root};
 
     // Initialize systems
     std::vector<std::unique_ptr<System>> systems;

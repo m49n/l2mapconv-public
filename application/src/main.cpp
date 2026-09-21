@@ -80,7 +80,7 @@ auto main(int argc, char **argv) -> int {
   }
 
   // Run application
-  const Application application;
+  const Application application{executable_directory(argv[0])};
   if (preview) {
     application.preview(client_root, maps);
   } else if (build) {

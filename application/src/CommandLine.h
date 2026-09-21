@@ -6,3 +6,8 @@
 inline auto client_root_path(std::string_view value) -> std::filesystem::path {
   return std::filesystem::path{value};
 }
+
+inline auto executable_directory(const std::filesystem::path &executable)
+    -> std::filesystem::path {
+  return std::filesystem::absolute(executable).parent_path();
+}
