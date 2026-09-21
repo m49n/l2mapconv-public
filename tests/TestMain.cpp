@@ -55,6 +55,7 @@ auto main(int argc, char **argv) -> int {
   failures += run_map_catalog_tests();
   failures += run_map_residency_tests();
   failures += run_map_load_options_tests();
+  failures += run_scene_group_tests();
 
   unreal::StaticMeshUVStream stream{};
   stream.uvs.push_back({0.25f, 0.75f});

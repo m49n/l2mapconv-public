@@ -9,7 +9,8 @@ Renderer::Renderer(RenderingContext &rendering_context,
       m_texture_loader{m_rendering_context.context,
                        resource_root / "textures"} {}
 
-void Renderer::render_maps(const std::vector<Map> &maps) const {
+auto Renderer::render_map(const Map &map) const -> rendering::SceneGroupId {
+  const auto group = m_rendering_context.scene.create_group();
   const auto entity_shader = m_shader_loader.load_entity_shader("entity");
 
   std::unordered_map<std::shared_ptr<EntityMesh>,
@@ -19,72 +20,73 @@ void Renderer::render_maps(const std::vector<Map> &maps) const {
   std::unordered_map<const unsigned char *, std::shared_ptr<rendering::Texture>>
       texture_cache;
 
-  for (const auto &map : maps) {
-    // Set initial camera position
-    if (!map.entities.empty()) {
-      m_rendering_context.camera.set_position(
-          {map.position.x + 256.0f * 64.0f, map.position.y, 0.0f});
-    }
+  for (const auto &entity : map.entities) {
+    // Load mesh if needed
+    auto cached_mesh = entity_mesh_cache.find(entity.mesh);
 
-    for (const auto &entity : map.entities) {
-      // Load mesh if needed
-      auto cached_mesh = entity_mesh_cache.find(entity.mesh);
+    if (cached_mesh == entity_mesh_cache.end()) {
+      std::vector<rendering::MeshSurface> surfaces;
 
-      if (cached_mesh == entity_mesh_cache.end()) {
-        std::vector<rendering::MeshSurface> surfaces;
+      for (const auto &surface : entity.mesh->surfaces) {
+        // Load texture if needed
+        auto cached_texture = texture_cache.find(surface.material.texture.data);
 
-        for (const auto &surface : entity.mesh->surfaces) {
-          // Load texture if needed
-          auto cached_texture =
-              texture_cache.find(surface.material.texture.data);
-
-          if (cached_texture == texture_cache.end()) {
-            const auto texture = load_texture(surface.material.texture);
-            cached_texture =
-                texture_cache.insert({surface.material.texture.data, texture})
-                    .first;
-          }
-
-          // Add surface
-          surfaces.emplace_back(surface.type,
-                                rendering::Material{surface.material.color,
-                                                    cached_texture->second},
-                                surface.index_offset, surface.index_count);
+        if (cached_texture == texture_cache.end()) {
+          const auto texture = load_texture(surface.material.texture);
+          cached_texture =
+              texture_cache.insert({surface.material.texture.data, texture})
+                  .first;
         }
 
-        // Add vertices
-        std::vector<rendering::Vertex> vertices;
-
-        for (const auto &vertex : entity.mesh->vertices) {
-          vertices.push_back({vertex.position, vertex.normal, vertex.uv});
-        }
-
-        const auto mesh = std::make_shared<rendering::EntityMesh>( //
-            m_rendering_context.context,                           //
-            vertices,                                              //
-            entity.mesh->indices,                                  //
-            surfaces,                                              //
-            entity.instance_matrices(),                            //
-            entity.mesh->bounding_box                              //
-        );
-
-        cached_mesh = entity_mesh_cache.insert({entity.mesh, mesh}).first;
+        // Add surface
+        surfaces.emplace_back(
+            surface.type,
+            rendering::Material{surface.material.color, cached_texture->second},
+            surface.index_offset, surface.index_count);
       }
 
-      rendering::Entity rendering_entity{
-          cached_mesh->second,
-          entity_shader,
-          entity.model_matrix(),
-          entity.wireframe,
-      };
+      // Add vertices
+      std::vector<rendering::Vertex> vertices;
 
-      m_rendering_context.scene.add(rendering_entity);
+      for (const auto &vertex : entity.mesh->vertices) {
+        vertices.push_back({vertex.position, vertex.normal, vertex.uv});
+      }
+
+      const auto mesh = std::make_shared<rendering::EntityMesh>( //
+          m_rendering_context.context,                           //
+          vertices,                                              //
+          entity.mesh->indices,                                  //
+          surfaces,                                              //
+          entity.instance_matrices(),                            //
+          entity.mesh->bounding_box                              //
+      );
+
+      cached_mesh = entity_mesh_cache.insert({entity.mesh, mesh}).first;
     }
+
+    rendering::Entity rendering_entity{
+        cached_mesh->second,
+        entity_shader,
+        entity.model_matrix(),
+        entity.wireframe,
+    };
+
+    m_rendering_context.scene.add(group, rendering_entity);
+  }
+
+  return group;
+}
+
+void Renderer::render_maps(const std::vector<Map> &maps) const {
+  for (const auto &map : maps) {
+    (void)render_map(map);
   }
 }
 
-void Renderer::render_geodata(
-    const std::vector<Entity<GeodataMesh>> &geodata_entities) const {
+auto Renderer::render_geodata_group(
+    const std::vector<Entity<GeodataMesh>> &geodata_entities) const
+    -> rendering::SceneGroupId {
+  const auto group = m_rendering_context.scene.create_group();
 
   const auto geodata_shader = m_shader_loader.load_entity_shader("geodata");
   const auto nswe_texture = m_texture_loader.load_texture("nswe.png");
@@ -126,12 +128,23 @@ void Renderer::render_geodata(
         false,
     };
 
-    m_rendering_context.scene.add(rendering_entity);
+    m_rendering_context.scene.add(group, rendering_entity);
   }
+
+  return group;
+}
+
+void Renderer::render_geodata(
+    const std::vector<Entity<GeodataMesh>> &geodata_entities) const {
+  (void)render_geodata_group(geodata_entities);
 }
 
 void Renderer::remove(std::uint64_t surface_filter) const {
   m_rendering_context.scene.remove(surface_filter);
+}
+
+void Renderer::remove_group(rendering::SceneGroupId group) const {
+  m_rendering_context.scene.remove_group(group);
 }
 
 auto Renderer::load_texture(const Texture &texture) const

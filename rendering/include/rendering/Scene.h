@@ -17,25 +17,44 @@
 
 namespace rendering {
 
+using SceneGroupId = std::uint64_t;
+
+struct SceneEntry {
+  SceneGroupId group;
+  const Entity *entity;
+  const MeshSurface *surface;
+};
+
 class Scene : public utils::NonCopyable {
 public:
   // TODO: May be optimized using BVH
-  using Tree = std::map<
-      std::uint64_t,
-      std::map<std::shared_ptr<const EntityShader>,
-               std::map<std::shared_ptr<const Texture>,
-                        std::map<std::shared_ptr<const DrawableMesh>,
-                                 std::vector<std::pair<
-                                     const Entity *, const MeshSurface *>>>>>>;
+  using EntityEntries = std::vector<SceneEntry>;
+  using MeshBranch =
+      std::map<std::shared_ptr<const DrawableMesh>, EntityEntries>;
+  using TextureBranch = std::map<std::shared_ptr<const Texture>, MeshBranch>;
+  using ShaderBranch =
+      std::map<std::shared_ptr<const EntityShader>, TextureBranch>;
+  using Tree = std::map<std::uint64_t, ShaderBranch>;
 
-  void add(const Entity &entity);
+  auto create_group() -> SceneGroupId;
+  void add(SceneGroupId group, const Entity &entity);
   void remove(std::uint64_t surface_filter);
+  void remove_group(SceneGroupId group);
+
+  auto group_size(SceneGroupId group) const -> std::size_t;
+  auto tree_entity_count() const -> std::size_t;
 
   auto tree() const -> const Tree &;
 
 private:
-  std::forward_list<Entity> m_entities;
+  struct EntityRecord {
+    SceneGroupId group;
+    Entity entity;
+  };
+
+  std::forward_list<EntityRecord> m_entities;
   Tree m_tree;
+  SceneGroupId m_next_group{1};
 };
 
 } // namespace rendering

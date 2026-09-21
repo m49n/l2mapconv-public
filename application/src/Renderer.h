@@ -18,6 +18,12 @@ public:
   explicit Renderer(RenderingContext &rendering_context,
                     const std::filesystem::path &resource_root);
 
+  auto render_map(const Map &map) const -> rendering::SceneGroupId;
+  auto render_geodata_group(
+      const std::vector<Entity<GeodataMesh>> &geodata_entities) const
+      -> rendering::SceneGroupId;
+  void remove_group(rendering::SceneGroupId group) const;
+
   void render_maps(const std::vector<Map> &maps) const;
   void render_geodata(
       const std::vector<Entity<GeodataMesh>> &geodata_entities) const;

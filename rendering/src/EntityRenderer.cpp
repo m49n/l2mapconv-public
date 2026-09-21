@@ -52,7 +52,9 @@ void EntityRenderer::render(const Scene &scene, const FrameSettings &settings,
           const auto &mesh = mesh_branch.first;
 
           // Surfaces
-          for (const auto &[entity, surface] : mesh_branch.second) {
+          for (const auto &entry : mesh_branch.second) {
+            const auto *entity = entry.entity;
+            const auto *surface = entry.surface;
             const auto &bounding_box = entity->bounding_box();
 
             // Frustum culling
