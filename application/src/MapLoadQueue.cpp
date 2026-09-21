@@ -6,9 +6,23 @@
 
 void MapLoadQueue::enqueue(MapLoadRequest request) {
   const auto latest = m_latest.find(request.key);
-  if (latest != m_latest.end() &&
-      latest->second.generation > request.generation) {
-    return;
+  if (latest != m_latest.end()) {
+    if (latest->second.generation > request.generation) {
+      return;
+    }
+    if (latest->second.generation == request.generation) {
+      const auto pending =
+          std::find_if(m_pending.begin(), m_pending.end(),
+                       [&request](const auto &candidate) {
+                         return candidate.key == request.key &&
+                                candidate.generation == request.generation;
+                       });
+      if (pending != m_pending.end()) {
+        *pending = request;
+        latest->second = std::move(request);
+      }
+      return;
+    }
   }
 
   std::erase_if(m_pending, [&request](const MapLoadRequest &pending) {

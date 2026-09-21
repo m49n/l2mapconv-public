@@ -4,8 +4,8 @@
 #include "MapLoadOptions.h"
 #include "SceneStats.h"
 #include "SurfaceVisibility.h"
-#include "TestSupport.h"
 #include "TestSuites.h"
+#include "TestSupport.h"
 #include "UISettings.h"
 #include "UnrealConverters.h"
 #include "UnrealLoader.h"
@@ -26,8 +26,7 @@ auto main(int argc, char **argv) -> int {
   if (argc == 4 && std::string_view{argv[1]} == "--probe-map-layers") {
     UnrealLoader loader{argv[2]};
     std::cout << "terrain-only\n";
-    print_scene_stats(
-        loader.load_map(argv[3], MapLoadOptions::terrain_only()));
+    print_scene_stats(loader.load_map(argv[3], MapLoadOptions::terrain_only()));
     std::cout << "detail-only\n";
     print_scene_stats(loader.load_map(argv[3], MapLoadOptions::detail_only()));
     return EXIT_SUCCESS;
@@ -59,6 +58,8 @@ auto main(int argc, char **argv) -> int {
   failures += run_map_selection_tests();
   failures += run_map_loading_tests();
   failures += run_map_streaming_tests();
+  failures += run_system_stack_tests();
+  failures += run_imported_geodata_tests();
 
   unreal::StaticMeshUVStream stream{};
   stream.uvs.push_back({0.25f, 0.75f});

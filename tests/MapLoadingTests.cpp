@@ -101,6 +101,15 @@ auto run_map_loading_tests() -> int {
                          coalesced.is_current(new_request),
                      "popped requests retain current-generation identity");
 
+  MapLoadQueue active_not_duplicated;
+  active_not_duplicated.enqueue(old_request);
+  const auto active = active_not_duplicated.pop();
+  active_not_duplicated.enqueue(request({22, 22}, MapLayer::Terrain, 1,
+                                        MapLoadPriority::AutomaticTerrain));
+  failures +=
+      expect(active && !active_not_duplicated.pop(),
+             "reprioritizing an active generation does not duplicate it");
+
   MapLoadQueue cancelled;
   cancelled.enqueue(old_request);
   cancelled.cancel(old_request.key);

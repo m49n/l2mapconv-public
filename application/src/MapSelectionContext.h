@@ -40,6 +40,7 @@ public:
   void set_manual(MapCoordinate coordinate, bool selected);
   void select_all_manual();
   void clear_manual();
+  auto take_retry_requests() -> Coordinates;
 
   auto current() const -> std::optional<MapCoordinate>;
   void set_current(MapCoordinate coordinate);
@@ -62,6 +63,7 @@ public:
 private:
   MapCatalog m_catalog;
   Coordinates m_manual;
+  Coordinates m_retry_requests;
   std::optional<MapCoordinate> m_current;
   bool m_auto_load{true};
   bool m_include_neighbors{true};

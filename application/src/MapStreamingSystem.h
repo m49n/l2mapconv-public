@@ -38,7 +38,9 @@ private:
   std::uint64_t m_next_generation{1};
 
   auto is_desired(MapLoadKey key) const -> bool;
-  auto make_request(MapLoadKey key) -> MapLoadRequest;
+  auto make_request(MapLoadKey key,
+                    std::optional<std::uint64_t> generation = std::nullopt)
+      -> MapLoadRequest;
   void set_status(MapLoadKey key, MapResidencyStatus status,
                   std::string error = {});
 };

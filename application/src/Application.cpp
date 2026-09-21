@@ -13,6 +13,7 @@
 #include "RendererMapSceneSink.h"
 #include "RenderingContext.h"
 #include "RenderingSystem.h"
+#include "SystemStack.h"
 #include "UIContext.h"
 #include "UISystem.h"
 #include "WindowContext.h"
@@ -59,12 +60,15 @@ void Application::preview(const std::filesystem::path &client_root,
   }
   const auto seed_coordinate = startup_coordinates.front();
 
-  // Make sure to remove systems & contexts before OpenGL context will be
-  // destroyed
+  ApplicationContext application_context{};
+  WindowContext window_context{};
+  WindowSystem window_system{window_context, application_context, "l2mapconv",
+                             1440, 1000};
+  window_system.start();
+
+  // GPU resources and background workers live in this inner scope so they are
+  // destroyed before WindowSystem terminates GLFW and its OpenGL context.
   {
-    // Initialize contexts
-    ApplicationContext application_context{};
-    WindowContext window_context{};
     UIContext ui_context{};
     ui_context.geodata.streaming_preview = true;
     RenderingContext rendering_context{};
@@ -72,32 +76,26 @@ void Application::preview(const std::filesystem::path &client_root,
 
     Renderer renderer{rendering_context, m_resource_root};
 
-    // Initialize systems
-    std::vector<std::unique_ptr<System>> systems;
-
-    systems.push_back(std::make_unique<WindowSystem>(
-        window_context, application_context, "l2mapconv", 1440, 1000));
-    systems.push_back(std::make_unique<CameraSystem>(
-        rendering_context, window_context, ui_context));
-    systems.push_back(std::make_unique<MapStreamingSystem>(
+    SystemStack systems;
+    systems.push(std::make_unique<CameraSystem>(rendering_context,
+                                                window_context, ui_context));
+    systems.push(std::make_unique<MapStreamingSystem>(
         map_selection,
         std::make_unique<MapLoadingWorker>(
             std::make_unique<UnrealMapSource>(client_root)),
         std::make_unique<RendererMapSceneSink>(renderer, rendering_context),
         seed_coordinate));
-    systems.push_back(std::make_unique<UISystem>(
-        ui_context, window_context, rendering_context, map_selection));
-    systems.push_back(std::make_unique<RenderingSystem>(
-        rendering_context, window_context, ui_context));
-    systems.push_back(std::make_unique<GeodataSystem>(geodata_context,
-                                                      ui_context, &renderer));
+    systems.push(std::make_unique<UISystem>(ui_context, window_context,
+                                            rendering_context, map_selection));
+    systems.push(std::make_unique<RenderingSystem>(rendering_context,
+                                                   window_context, ui_context));
+    systems.push(std::make_unique<GeodataSystem>(geodata_context, ui_context,
+                                                 &renderer));
 
     // Run application
     application_context.running = true;
 
-    for (const auto &system : systems) {
-      system->start();
-    }
+    systems.start();
 
     auto last_frmae_time = 0.0f;
 
@@ -107,19 +105,14 @@ void Application::preview(const std::filesystem::path &client_root,
       Timestep frame_time{time - last_frmae_time};
       last_frmae_time = time;
 
-      for (const auto &system : systems) {
-        system->frame_begin(frame_time);
-      }
-
-      for (auto system = systems.rbegin(); system != systems.rend(); ++system) {
-        (*system)->frame_end(frame_time);
-      }
+      window_system.frame_begin(frame_time);
+      systems.frame_begin(frame_time);
+      systems.frame_end(frame_time);
+      window_system.frame_end(frame_time);
     }
-
-    for (auto system = systems.rbegin(); system != systems.rend(); ++system) {
-      (*system)->stop();
-    }
+    systems.shutdown();
   }
+  window_system.stop();
 }
 
 void Application::build(const std::filesystem::path &client_root,

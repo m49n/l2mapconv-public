@@ -7,3 +7,5 @@ auto run_scene_group_tests() -> int;
 auto run_map_selection_tests() -> int;
 auto run_map_loading_tests() -> int;
 auto run_map_streaming_tests() -> int;
+auto run_system_stack_tests() -> int;
+auto run_imported_geodata_tests() -> int;

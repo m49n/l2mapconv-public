@@ -66,6 +66,15 @@ void MapStreamingSystem::tick() {
   m_desired = desired_map_residency(m_selection.catalog(),
                                     m_selection.residency_intent());
 
+  for (const auto coordinate : m_selection.take_retry_requests()) {
+    for (const auto layer : {MapLayer::Terrain, MapLayer::Detail}) {
+      const MapLoadKey key{coordinate, layer};
+      if (m_failed.erase(key) > 0) {
+        set_status(key, MapResidencyStatus::NotResident);
+      }
+    }
+  }
+
   for (const auto &request : started) {
     if (m_loader->is_current(request) && is_desired(request.key)) {
       set_status(request.key, MapResidencyStatus::Loading);
@@ -144,8 +153,12 @@ void MapStreamingSystem::tick() {
 
   std::vector<MapLoadRequest> requests;
   const auto enqueue_missing = [this, &requests](MapLoadKey key) {
-    if (m_groups.contains(key) || m_in_flight.contains(key) ||
-        m_failed.contains(key)) {
+    if (m_groups.contains(key) || m_failed.contains(key)) {
+      return;
+    }
+    const auto requested = m_requested_generations.find(key);
+    if (requested != m_requested_generations.end()) {
+      requests.push_back(make_request(key, requested->second));
       return;
     }
     auto request = make_request(key);
@@ -184,7 +197,9 @@ auto MapStreamingSystem::is_desired(MapLoadKey key) const -> bool {
              : m_desired.detail.contains(key.coordinate);
 }
 
-auto MapStreamingSystem::make_request(MapLoadKey key) -> MapLoadRequest {
+auto MapStreamingSystem::make_request(MapLoadKey key,
+                                      std::optional<std::uint64_t> generation)
+    -> MapLoadRequest {
   const auto *region = m_selection.catalog().find(key.coordinate);
   const auto priority = [&] {
     if (key.layer == MapLayer::Detail) {
@@ -196,7 +211,9 @@ auto MapStreamingSystem::make_request(MapLoadKey key) -> MapLoadRequest {
                ? MapLoadPriority::AutomaticTerrain
                : MapLoadPriority::ManualTerrain;
   }();
-  return {key, *region, m_next_generation++, priority};
+  const auto request_generation =
+      generation ? *generation : m_next_generation++;
+  return {key, *region, request_generation, priority};
 }
 
 void MapStreamingSystem::set_status(MapLoadKey key, MapResidencyStatus status,

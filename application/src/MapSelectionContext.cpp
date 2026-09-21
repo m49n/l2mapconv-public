@@ -19,7 +19,11 @@ void MapSelectionContext::set_manual(MapCoordinate coordinate, bool selected) {
     return;
   }
   if (selected) {
-    m_manual.insert(coordinate);
+    const auto [entry, inserted] = m_manual.insert(coordinate);
+    (void)entry;
+    if (inserted) {
+      m_retry_requests.insert(coordinate);
+    }
   } else {
     m_manual.erase(coordinate);
   }
@@ -32,6 +36,12 @@ void MapSelectionContext::select_all_manual() {
 }
 
 void MapSelectionContext::clear_manual() { m_manual.clear(); }
+
+auto MapSelectionContext::take_retry_requests() -> Coordinates {
+  Coordinates result;
+  result.swap(m_retry_requests);
+  return result;
+}
 
 auto MapSelectionContext::current() const -> std::optional<MapCoordinate> {
   return m_current;

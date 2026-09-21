@@ -11,6 +11,7 @@ add_executable(${PROJECT_NAME}
     src/UISystem.cpp
     src/CameraSystem.cpp
     src/CameraMotion.cpp
+    src/SystemStack.cpp
     src/ExecutablePath.cpp
     src/MapCatalog.cpp
     src/MapGridTransform.cpp
@@ -20,6 +21,7 @@ add_executable(${PROJECT_NAME}
     src/MapLoadingWorker.cpp
     src/MapStreamingSystem.cpp
     src/RendererMapSceneSink.cpp
+    src/ImportedGeodataLoader.cpp
     src/UnrealMapSource.cpp
     src/LoadingSystem.cpp
     src/GeodataSystem.cpp

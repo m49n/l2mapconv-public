@@ -7,6 +7,8 @@ add_executable(l2mapconv_tests
     MapSelectionTests.cpp
     MapLoadingTests.cpp
     MapStreamingTests.cpp
+    SystemStackTests.cpp
+    ImportedGeodataTests.cpp
     ${CMAKE_SOURCE_DIR}/application/src/CameraMotion.cpp
     ${CMAKE_SOURCE_DIR}/application/src/ExecutablePath.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapCatalog.cpp
@@ -16,6 +18,8 @@ add_executable(l2mapconv_tests
     ${CMAKE_SOURCE_DIR}/application/src/MapLoadQueue.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapLoadingWorker.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapStreamingSystem.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/SystemStack.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/ImportedGeodataLoader.cpp
     ${CMAKE_SOURCE_DIR}/application/src/UnrealLoader.cpp
 )
 

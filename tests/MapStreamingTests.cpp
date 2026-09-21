@@ -59,6 +59,9 @@ public:
     last_requests = requests;
     for (const auto &request : requests) {
       latest.insert_or_assign(request.key, request.generation);
+      if (defer_start) {
+        continue;
+      }
       started.push_back(request);
       if (auto_complete) {
         completed.push_back({request, loaded_map(request.key.coordinate), {}});
@@ -87,7 +90,12 @@ public:
     completed.push_back({request, loaded_map(request.key.coordinate), {}});
   }
 
+  void inject_failure(MapLoadRequest request, std::string error) {
+    completed.push_back({std::move(request), std::nullopt, std::move(error)});
+  }
+
   bool auto_complete{true};
+  bool defer_start{};
   std::vector<MapLoadRequest> last_requests;
 
 private:
@@ -205,6 +213,100 @@ auto run_map_streaming_tests() -> int {
     streaming.tick();
     failures += expect(sink_view->upload_count() == uploads_before,
                        "stale completion never reaches the renderer");
+  }
+
+  MapSelectionContext priority_selection{MapCatalog::discover(fixture.root)};
+  priority_selection.set_manual({22, 22}, true);
+  priority_selection.set_include_neighbors(false);
+  auto priority_service = std::make_unique<ImmediateMapLoadService>();
+  auto *priority_service_view = priority_service.get();
+  auto priority_sink = std::make_unique<FakeMapSceneSink>();
+  auto *priority_sink_view = priority_sink.get();
+  MapStreamingSystem priority_streaming{priority_selection,
+                                        std::move(priority_service),
+                                        std::move(priority_sink),
+                                        {22, 22}};
+  priority_streaming.tick();
+  priority_streaming.tick();
+  priority_streaming.tick();
+
+  priority_service_view->auto_complete = false;
+  priority_service_view->defer_start = true;
+  priority_selection.select_all_manual();
+  priority_selection.set_include_neighbors(true);
+  priority_streaming.tick();
+  priority_sink_view->set_region({23, 22});
+  priority_streaming.tick();
+
+  const auto reprioritized_current = std::find_if(
+      priority_service_view->last_requests.begin(),
+      priority_service_view->last_requests.end(),
+      [](const MapLoadRequest &request) {
+        return request.key == MapLoadKey{{23, 22}, MapLayer::Detail};
+      });
+  failures += expect(
+      reprioritized_current != priority_service_view->last_requests.end() &&
+          reprioritized_current->priority == MapLoadPriority::CurrentDetail,
+      "queued detail is reprioritized after the camera crosses a boundary");
+
+  const auto reprioritized_terrain = std::find_if(
+      priority_service_view->last_requests.begin(),
+      priority_service_view->last_requests.end(),
+      [](const MapLoadRequest &request) {
+        return request.key == MapLoadKey{{24, 22}, MapLayer::Terrain};
+      });
+  failures += expect(
+      reprioritized_terrain != priority_service_view->last_requests.end() &&
+          reprioritized_terrain->priority == MapLoadPriority::AutomaticTerrain,
+      "queued manual terrain is reprioritized inside the automatic ring");
+
+  MapSelectionContext retry_selection{MapCatalog::discover(fixture.root)};
+  retry_selection.set_manual({22, 22}, true);
+  retry_selection.set_include_neighbors(false);
+  auto retry_service = std::make_unique<ImmediateMapLoadService>();
+  auto *retry_service_view = retry_service.get();
+  auto retry_sink = std::make_unique<FakeMapSceneSink>();
+  auto *retry_sink_view = retry_sink.get();
+  MapStreamingSystem retry_streaming{retry_selection,
+                                     std::move(retry_service),
+                                     std::move(retry_sink),
+                                     {22, 22}};
+  retry_streaming.tick();
+  retry_streaming.tick();
+  retry_streaming.tick();
+
+  retry_service_view->auto_complete = false;
+  retry_sink_view->set_region({25, 22});
+  retry_streaming.tick();
+  const auto failed_request = std::find_if(
+      retry_service_view->last_requests.begin(),
+      retry_service_view->last_requests.end(),
+      [](const MapLoadRequest &request) {
+        return request.key == MapLoadKey{{25, 22}, MapLayer::Detail};
+      });
+  failures += expect(failed_request != retry_service_view->last_requests.end(),
+                     "new current detail can enter the loading queue");
+  if (failed_request != retry_service_view->last_requests.end()) {
+    const auto failed_generation = failed_request->generation;
+    retry_service_view->inject_failure(*failed_request, "fixture failure");
+    retry_streaming.tick();
+    failures += expect(retry_selection.status({25, 22}, MapLayer::Detail) ==
+                           MapResidencyStatus::Failed,
+                       "failed current detail is visible in selection state");
+
+    retry_selection.set_manual({25, 22}, false);
+    retry_selection.set_manual({25, 22}, true);
+    retry_streaming.tick();
+    const auto retried = std::find_if(
+        retry_service_view->last_requests.begin(),
+        retry_service_view->last_requests.end(),
+        [](const MapLoadRequest &request) {
+          return request.key == MapLoadKey{{25, 22}, MapLayer::Detail};
+        });
+    failures +=
+        expect(retried != retry_service_view->last_requests.end() &&
+                   retried->generation > failed_generation,
+               "reselecting a failed automatic map queues a fresh generation");
   }
 
   return failures;
