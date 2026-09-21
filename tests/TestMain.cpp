@@ -1,4 +1,5 @@
 #include "CameraMotion.h"
+#include "ClientFolderPicker.h"
 #include "CommandLine.h"
 #include "ExecutablePath.h"
 #include "MapLoadOptions.h"
@@ -11,7 +12,12 @@
 #include "UnrealLoader.h"
 
 #include <filesystem>
+#include <optional>
+#include <type_traits>
 #include <vector>
+
+static_assert(std::is_same_v<decltype(choose_client_root_folder()),
+                             std::optional<std::filesystem::path>>);
 
 namespace {
 

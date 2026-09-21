@@ -24,6 +24,7 @@ add_executable(${PROJECT_NAME}
     src/ImportedGeodataLoader.cpp
     src/RecentClients.cpp
     src/ClientStartup.cpp
+    src/ClientFolderPicker.cpp
     src/UnrealMapSource.cpp
     src/LoadingSystem.cpp
     src/GeodataSystem.cpp
@@ -49,6 +50,10 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE imgui
     PRIVATE cxxopts
 )
+
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ole32 shell32 uuid)
+endif()
 
 # Compiler settings
 set_target_properties(${PROJECT_NAME} PROPERTIES ${TARGET_PROPERTIES})
