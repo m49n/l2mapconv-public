@@ -1,9 +1,12 @@
 add_executable(l2mapconv_tests
     TestMain.cpp
     MapCatalogTests.cpp
+    MapResidencyTests.cpp
     ${CMAKE_SOURCE_DIR}/application/src/CameraMotion.cpp
     ${CMAKE_SOURCE_DIR}/application/src/ExecutablePath.cpp
     ${CMAKE_SOURCE_DIR}/application/src/MapCatalog.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/MapGridTransform.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/MapResidency.cpp
 )
 
 set_target_properties(l2mapconv_tests PROPERTIES ${TARGET_PROPERTIES})
