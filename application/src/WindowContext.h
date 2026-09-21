@@ -30,6 +30,8 @@ struct WindowContext {
 
   struct {
     bool w, a, s, d;
+    bool space;
+    bool control;
     bool m;
     bool shift;
     bool alt;

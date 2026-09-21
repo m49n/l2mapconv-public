@@ -39,8 +39,8 @@ void Application::preview(const std::filesystem::path &client_root,
                                                  rendering_context));
     systems.push_back(std::make_unique<RenderingSystem>(
         rendering_context, window_context, ui_context));
-    systems.push_back(
-        std::make_unique<CameraSystem>(rendering_context, window_context));
+    systems.push_back(std::make_unique<CameraSystem>(
+        rendering_context, window_context, ui_context));
     systems.push_back(std::make_unique<LoadingSystem>(
         geodata_context, &renderer, client_root, maps));
     systems.push_back(std::make_unique<GeodataSystem>(geodata_context,

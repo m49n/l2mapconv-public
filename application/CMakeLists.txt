@@ -10,6 +10,7 @@ add_executable(${PROJECT_NAME}
     src/RenderingSystem.cpp
     src/UISystem.cpp
     src/CameraSystem.cpp
+    src/CameraMotion.cpp
     src/LoadingSystem.cpp
     src/GeodataSystem.cpp
 

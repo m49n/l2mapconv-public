@@ -59,6 +59,14 @@ void UISystem::rendering_window(Timestep frame_time) const {
   ImGui::Text("\tx: %d", static_cast<int>(camera_position.x));
   ImGui::Text("\ty: %d", static_cast<int>(camera_position.y));
   ImGui::Text("\tz: %d", static_cast<int>(camera_position.z));
+  ImGui::InputFloat("Camera Speed", &m_ui_context.camera.speed, 100.0f,
+                    1000.0f, "%.0f");
+  ImGui::InputFloat("Mouse Sensitivity",
+                    &m_ui_context.camera.mouse_sensitivity, 0.0001f, 0.001f,
+                    "%.4f");
+  ImGui::TextUnformatted(
+      "RMB look | WASD move | Space/Ctrl vertical | Shift fast | Alt slow | "
+      "M wireframe");
 #ifdef LOAD_TEXTURES
   ImGui::Checkbox("Textures", &m_ui_context.rendering.textures);
 #endif

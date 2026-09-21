@@ -65,6 +65,10 @@ void WindowSystem::frame_begin(Timestep /*frame_time*/) {
   m_window_context.keyboard.a = glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS;
   m_window_context.keyboard.s = glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS;
   m_window_context.keyboard.d = glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS;
+  m_window_context.keyboard.space =
+      glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS;
+  m_window_context.keyboard.control =
+      glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS;
 
   m_window_context.keyboard.shift =
       glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;

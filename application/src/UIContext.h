@@ -4,6 +4,11 @@
 
 struct UIContext {
   struct {
+    float speed{3000.0f};
+    float mouse_sensitivity{0.002f};
+  } camera;
+
+  struct {
     int draws;
     bool textures;
     bool culling;
