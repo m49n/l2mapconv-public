@@ -102,7 +102,7 @@ auto main(int argc, char **argv) -> int {
                                                                              //
       ("preview", "Preview maps")                                            //
                                                                              //
-      ("build", "Build maps (see results in the `output` directory)")        //
+      ("build", "Build maps (writes L2J and PTS files to `output`)")         //
                                                                              //
       ("client-root", "Path to the Lineage II client",                       //
        cxxopts::value<std::string>())                                        //

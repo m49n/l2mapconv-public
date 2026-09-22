@@ -66,6 +66,7 @@ auto main(int argc, char **argv) -> int {
   failures += run_map_streaming_tests();
   failures += run_system_stack_tests();
   failures += run_imported_geodata_tests();
+  failures += run_pts_geodata_tests();
   failures += run_recent_clients_tests();
   failures += run_client_startup_tests();
   failures += run_client_session_tests();

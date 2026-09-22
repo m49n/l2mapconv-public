@@ -48,7 +48,7 @@ void GeodataSystem::build() const {
       utils::Log(utils::LOG_INFO, "App")
           << "Exporting geodata for map: " << map.name() << std::endl;
 
-      geodata_exporter.export_l2j_geodata(buffer, map.name());
+      geodata_exporter.export_geodata(buffer, map.name());
     }
   }
 }

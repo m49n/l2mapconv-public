@@ -9,6 +9,7 @@ add_executable(l2mapconv_tests
     MapStreamingTests.cpp
     SystemStackTests.cpp
     ImportedGeodataTests.cpp
+    PtsGeodataTests.cpp
     RecentClientsTests.cpp
     ClientStartupTests.cpp
     ClientSessionTests.cpp

@@ -8,7 +8,7 @@
 Lineage II map previewer and geodata builder.
 
 - Supported geodata generation clients: C1, HF.
-- Supported geodata format: L2J.
+- Supported geodata export formats: L2J and PTS (`XX_YY_conv.dat`).
 - Experimental map preview: Essence P542, verified with Samurai Crow EU maps,
   including dynamic streaming around `22_22`.
 
@@ -18,7 +18,7 @@ Lineage II map previewer and geodata builder.
 - Collisionless six-axis free camera with geometry filters.
 - Manual terrain selection plus automatic full-detail streaming for the current
   map and, optionally, its immediate neighbours.
-- L2J geodata building.
+- L2J and PTS geodata building from the same generated map data.
 
 ## Usage
 
@@ -40,7 +40,7 @@ history.
 l2mapconv.exe --preview/build --client-root <path> -- [maps...]
 
     --preview          Preview maps
-    --build            Build maps (see results in the `output` directory)
+    --build            Build maps (writes `.l2j` and `_conv.dat` to `output`)
     --client-root arg  Path to the Lineage II client
     --log-level arg    Log level (0 - none, 1 - fatal, 2 - error, 3 -
                        warn, 4 - info, 5 - debug, 6 - all) (default: 3)
@@ -100,8 +100,16 @@ the visible scene may contain terrain-only regions and is not a complete
 generation input. The command-line `--build` workflow is unchanged and remains
 the only complete-map generation path.
 
-P542 geodata generation has not been validated yet. The current P542 scope is
-map inspection, not a claim that generated geodata is ready for a live server.
+P542 geodata export has passed structural file checks, but heights and
+passability have not yet been validated in a live client/server. The current
+P542 scope is map inspection, not a claim that generated geodata is ready for
+a live server.
+Both formats contain the same generated cells; the PTS export is written
+directly from the build buffer, not by reading the L2J file. Inspect both
+files and test heights and passability in the client/server before deployment.
+The `output` directory is created automatically. Existing region outputs are
+never overwritten: run from a fresh working directory or move the old files
+aside before rebuilding a region.
 Texture-complete terrain preview and high-resolution radar-map export are
 separate future work, outside this milestone.
 

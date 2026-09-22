@@ -28,11 +28,17 @@ copied or squashed into a replacement commit.
   package parsing and as a source of later validation ideas for terrain,
   collision, layers, NSWE, diffing, and atomic output.
 - [m49n/l2-geodata-toolkit](https://github.com/m49n/l2-geodata-toolkit) is the
-  publication fork that was supplied for comparison.
+  publication fork that was supplied for comparison; its PTS format notes and
+  round-trip behavior informed independent validation of the C++ PTS writer.
+- [GeodataConverter](https://github.com/MrKirill1232/GeodataConverter) by
+  MrKirill1232, with the PTS writer attributed in source to Index, was
+  consulted as a second format reference via the
+  [m49n fork](https://github.com/m49n/GeodataConverter).
 
 No Python source from L2 Geodata Toolkit is copied into this project and it is
 not a runtime dependency. Its repository currently contains no explicit
 license file, so useful behavior is being reimplemented independently in C++.
+No Java source from GeodataConverter is copied into this project either.
 
 ## Bundled dependencies
 

@@ -4,6 +4,7 @@ project(geodata)
 add_library(${PROJECT_NAME}
     src/pch.cpp
     src/L2JSerializer.cpp
+    src/PtsSerializer.cpp
     src/Loader.cpp
     src/Exporter.cpp
     src/Map.cpp
