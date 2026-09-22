@@ -87,10 +87,11 @@ auto run_pts_geodata_tests() -> int {
   const auto bytes = read_bytes(path);
   failures += expect(bytes.size() == 393612,
                      "PTS blocks use the expected encoded sizes");
+  // 64 complex cells plus 65 serialized multilayer cells.
   failures += expect(matches(bytes, 0,
-                             {24, 18, 0x80, 0, 0x10, 0, 0x80, 0, 0, 0, 0xff,
+                             {24, 18, 0x80, 0, 0x10, 0, 0x81, 0, 0, 0, 0xff,
                               0xff, 0, 0, 0xfe, 0xff, 0, 0}),
-                     "PTS header contains region coordinates and block counts");
+                     "PTS header counts every serialized multilayer cell");
   failures += expect(matches(bytes, 18, {0x40, 0, 0x39, 0}),
                      "PTS complex block preserves packed height and NSWE");
   failures += expect(matches(bytes, 148, {0x41, 0, 2, 0, 0x1f, 0, 0x38, 0}),

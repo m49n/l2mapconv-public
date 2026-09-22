@@ -50,7 +50,7 @@ void PtsSerializer::serialize(const ExportBuffer &buffer, std::uint8_t region_x,
                               std::ostream &output) const {
   auto flat_blocks = 0U;
   auto complex_blocks = 0U;
-  auto multilayer_blocks = 0U;
+  auto serialized_cells = 0U;
 
   for (auto x = 0; x < REGION_WIDTH_BLOCKS; ++x) {
     for (auto y = 0; y < REGION_WIDTH_BLOCKS; ++y) {
@@ -60,14 +60,16 @@ void PtsSerializer::serialize(const ExportBuffer &buffer, std::uint8_t region_x,
         break;
       case BLOCK_COMPLEX:
         ++complex_blocks;
+        serialized_cells += 64;
         break;
-      case BLOCK_MULTILAYER:
-        if (layer_count(buffer, x, y) == 64) {
+      case BLOCK_MULTILAYER: {
+        const auto layers = layer_count(buffer, x, y);
+        serialized_cells += layers;
+        if (layers == 64) {
           ++complex_blocks;
-        } else {
-          ++multilayer_blocks;
         }
         break;
+      }
       default:
         throw std::runtime_error{
             "PTS export encountered an unknown block type"};
@@ -79,7 +81,7 @@ void PtsSerializer::serialize(const ExportBuffer &buffer, std::uint8_t region_x,
   output.put(static_cast<char>(region_y));
   write_u16(output, 128);
   write_u16(output, 16);
-  write_u32(output, (complex_blocks + multilayer_blocks) * 64);
+  write_u32(output, serialized_cells);
   write_u32(output, flat_blocks + complex_blocks);
   write_u32(output, flat_blocks);
 
