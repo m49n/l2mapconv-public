@@ -2,6 +2,7 @@
 
 #include "UISettings.h"
 #include "UISystem.h"
+#include "TerritoryRenderController.h"
 
 #include <string>
 
@@ -66,10 +67,14 @@ UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
 UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
                    RenderingContext &rendering_context,
                    MapSelectionContext &map_selection_context,
-                   ClientSessionContext &client_session_context)
+                   ClientSessionContext &client_session_context,
+                   TerritoryRenderController *territory_controller,
+                   TerritoryRenderViewState *territory_view)
     : UISystem{ui_context, window_context, rendering_context} {
   m_map_selection_context = &map_selection_context;
   m_client_session_context = &client_session_context;
+  m_territory_controller = territory_controller;
+  m_territory_view = territory_view;
 }
 
 UISystem::~UISystem() {
@@ -79,6 +84,10 @@ UISystem::~UISystem() {
 }
 
 void UISystem::frame_begin(Timestep frame_time) {
+  if (m_territory_controller != nullptr) {
+    m_territory_controller->poll();
+    m_client_session_context->set_switch_blocked(m_territory_controller->active());
+  }
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
@@ -91,6 +100,10 @@ void UISystem::frame_begin(Timestep frame_time) {
   }
   rendering_window(frame_time);
   geodata_window();
+  if (m_territory_controller != nullptr && m_territory_view != nullptr) {
+    draw_territory_render_window(*m_territory_view, *m_territory_controller,
+                                *m_map_selection_context, *m_client_session_context);
+  }
 }
 
 void UISystem::client_window() const {
@@ -100,6 +113,7 @@ void UISystem::client_window() const {
   ImGui::Begin("Client", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::TextUnformatted("Current client:");
   ImGui::TextWrapped("%s", current.c_str());
+  ImGui::BeginDisabled(client.switch_blocked());
   if (ImGui::Button("Browse...")) {
     client.browse();
   }
@@ -118,6 +132,10 @@ void UISystem::client_window() const {
     }
   }
 
+  ImGui::EndDisabled();
+  if (client.switch_blocked()) {
+    ImGui::TextUnformatted("Client switching is locked while a territory job runs.");
+  }
   if (!client.error().empty()) {
     ImGui::TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "%s", client.error().c_str());
   }

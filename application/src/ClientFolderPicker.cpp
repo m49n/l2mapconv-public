@@ -80,6 +80,10 @@ auto utf8_to_wide(std::string_view value) -> std::wstring {
 #endif
 
 auto choose_client_root_folder() -> std::optional<std::filesystem::path> {
+  return choose_directory(L"Choose the Lineage II client sam directory");
+}
+
+auto choose_directory(std::wstring_view title) -> std::optional<std::filesystem::path> {
 #ifdef _WIN32
   const ComApartment apartment;
   if (!apartment.ready()) {
@@ -108,7 +112,7 @@ auto choose_client_root_folder() -> std::optional<std::filesystem::path> {
     log_failure("IFileDialog::SetOptions", result);
     return std::nullopt;
   }
-  result = dialog->SetTitle(L"Choose the Lineage II client sam directory");
+  result = dialog->SetTitle(std::wstring(title).c_str());
   if (FAILED(result)) {
     log_failure("IFileDialog::SetTitle", result);
     return std::nullopt;
@@ -142,6 +146,7 @@ auto choose_client_root_folder() -> std::optional<std::filesystem::path> {
       raw_path, &CoTaskMemFree};
   return std::filesystem::path{selected_path.get()};
 #else
+  (void)title;
   return std::nullopt;
 #endif
 }

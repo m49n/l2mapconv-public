@@ -179,6 +179,13 @@ void NSWE::calculate_simple_nswe() {
           for (auto *neighbour = m_hf->spans[side_x + side_y * m_hf->width];
                neighbour != nullptr; neighbour = neighbour->next) {
 
+            // Builder discards these surfaces. They cannot be a landing layer,
+            // even when their height would otherwise allow a step or a drop.
+            const auto neighbour_area = unpack_area(neighbour->area);
+            if (neighbour_area == RC_NULL_AREA) {
+              continue;
+            }
+
             const auto neighbour_bottom = static_cast<int>(neighbour->smax);
             const auto neighbour_top =
                 neighbour->next != nullptr
@@ -190,8 +197,6 @@ void NSWE::calculate_simple_nswe() {
             const auto diff = neighbour_bottom - bottom;
 
             if (height > actor_height_cells) {
-              const auto neighbour_area = unpack_area(neighbour->area);
-
               if (area <= RC_STEEP_AREA || neighbour_area <= RC_STEEP_AREA) {
                 // Forbid going up on steep surfaces
                 direction_allowed = diff <= min_walkable_climb_cells;

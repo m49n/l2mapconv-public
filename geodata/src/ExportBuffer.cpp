@@ -2,6 +2,9 @@
 
 #include <geodata/ExportBuffer.h>
 
+#include <stdexcept>
+#include <string>
+
 namespace geodata {
 
 static constexpr auto MAP_WIDTH_BLOCKS = 256;
@@ -37,13 +40,15 @@ void ExportBuffer::reset(const Geodata &geodata) {
     auto &column = m_columns[column_index];
     auto &block = m_blocks[block_index];
 
+    if (column.layers >= MAX_LAYERS) {
+      throw std::runtime_error{"Too many geodata layers at cell " +
+                               std::to_string(cell.x) + "," +
+                               std::to_string(cell.y) + " (maximum 64)"};
+    }
+    const auto packed = pack_cell(cell);
     block.type = cell.type;
-
     column.layers++;
-    m_cells[column_index * MAX_LAYERS + column.layers - 1] = pack_cell(cell);
-
-    ASSERT(column.layers < MAX_LAYERS - 1, "Geodata", // MAX_LAYERS - 1 is ok
-           "Too many layers in column: " << cell.x << " " << cell.y);
+    m_cells[column_index * MAX_LAYERS + column.layers - 1] = packed;
   }
 }
 

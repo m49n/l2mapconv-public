@@ -34,6 +34,7 @@ add_subdirectory(geometry)
 add_subdirectory(unreal)
 add_subdirectory(rendering)
 add_subdirectory(geodata)
+add_subdirectory(territory)
 
 add_subdirectory(application)
 

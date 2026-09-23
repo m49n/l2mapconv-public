@@ -1,10 +1,49 @@
 #include "pch.h"
 
 #include <unreal/Actor.h>
+#include <stdexcept>
 
 namespace unreal {
 
 auto Actor::set_property(const Property &property) -> bool {
+  if (property.name == "Skins") {
+    if (property.type == PropertyType::Object) {
+      const auto slot = property.array_index.value;
+      if (slot < 0 || slot >= 256) throw std::runtime_error("Invalid actor skin slot");
+      if (skins.size() <= static_cast<std::size_t>(slot)) skins.resize(static_cast<std::size_t>(slot) + 1);
+      skins[slot].from_property(property, archive);
+      return true;
+    }
+    if (property.type != PropertyType::Array || property.array_size.value < 0 || property.array_size.value > 256)
+      throw std::runtime_error("Invalid actor skin array");
+    std::size_t cursor = 0;
+    auto byte = [&]() {
+      if (cursor >= property.data_value.size()) throw std::runtime_error("Truncated actor skin index");
+      return property.data_value[cursor++];
+    };
+    std::vector<MaterialReference> parsed;
+    for (int i = 0; i < property.array_size.value; ++i) {
+      const auto first = byte();
+      const bool negative = (first & 128) != 0;
+      bool more = (first & 64) != 0;
+      std::int64_t value = first & 63;
+      unsigned shift = 6;
+      while (more) {
+        if (shift > 27) throw std::runtime_error("Oversized actor skin index");
+        const auto next = byte();
+        value |= static_cast<std::int64_t>(next & 127) << shift;
+        more = (next & 128) != 0; shift += 7;
+      }
+      if (negative) value = -value;
+      if (value < std::numeric_limits<std::int32_t>::min() || value > std::numeric_limits<std::int32_t>::max())
+        throw std::runtime_error("Actor skin index overflow");
+      Property reference{}; reference.index_value.value = static_cast<std::int32_t>(value);
+      MaterialReference skin; skin.from_property(reference, archive); parsed.push_back(std::move(skin));
+    }
+    if (cursor != property.data_value.size()) throw std::runtime_error("Trailing actor skin array bytes");
+    skins = std::move(parsed);
+    return true;
+  }
   if (Object::set_property(property)) {
     return true;
   }

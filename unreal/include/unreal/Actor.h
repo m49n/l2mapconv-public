@@ -16,6 +16,7 @@ public:
   Vector draw_scale_3d;
   Vector pre_pivot;
   ObjectRef<StaticMesh, ObjectRefRequirement::Optional> static_mesh;
+  std::vector<MaterialReference> skins;
   bool delete_me;
   bool hidden;
   bool collide_actors;

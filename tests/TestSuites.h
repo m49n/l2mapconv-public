@@ -1,5 +1,12 @@
 #pragma once
 
+#include <filesystem>
+#include <string>
+
+auto run_geodata_generation_tests() -> int;
+auto run_static_mesh_collision_tests(const std::filesystem::path &client,
+                                     const std::string &region) -> int;
+
 auto run_map_catalog_tests() -> int;
 auto run_map_residency_tests() -> int;
 auto run_map_load_options_tests() -> int;

@@ -2,8 +2,52 @@
 
 #include <unreal/Archive.h>
 #include <unreal/ArchiveLoader.h>
+#include <unordered_set>
+#include <stdexcept>
 
 namespace unreal {
+auto Archive::remaining() -> std::streamoff {
+  const auto position = m_input.tellg();
+  const auto end = m_read_limit >= 0 ? m_read_limit : size();
+  if (position < 0 || position > end) throw std::runtime_error("Unreal stream outside serialized object");
+  return end - position;
+}
+void Archive::require_bytes(std::size_t count) {
+  if (m_read_limit >= 0 && count > static_cast<std::uint64_t>(remaining()))
+    throw std::runtime_error("Read exceeds Unreal object's serial range");
+}
+auto Archive::object_reference(Index index) const -> AssetReference {
+  if (index == 0) return {};
+  AssetReference result{std::string{name}, {}, {}};
+  std::vector<std::string> parts;
+  std::unordered_set<std::int32_t> seen;
+  auto current = index.value;
+  while (current != 0) {
+    if (!seen.insert(current).second || seen.size() > export_map.size() + import_map.size())
+      throw std::runtime_error("Cyclic Unreal object outer chain");
+    const auto offset = current < 0 ? -static_cast<std::int64_t>(current) - 1 : static_cast<std::int64_t>(current) - 1;
+    std::string leaf, type;
+    std::int32_t outer = 0;
+    if (current < 0) {
+      if (static_cast<std::uint64_t>(offset) >= import_map.size()) throw std::runtime_error("Unreal import index out of range");
+      const auto& item = import_map[static_cast<std::size_t>(offset)];
+      leaf = item.object_name; type = item.class_name; outer = item.package_index;
+    } else {
+      if (static_cast<std::uint64_t>(offset) >= export_map.size()) throw std::runtime_error("Unreal export index out of range");
+      const auto& item = export_map[static_cast<std::size_t>(offset)];
+      leaf = item.object_name; type = item.class_name; outer = item.package_index;
+    }
+    if (seen.size() == 1) result.class_name = type;
+    if (current < 0 && outer == 0 && type == "Package") result.package = leaf;
+    else parts.push_back(leaf);
+    current = outer;
+  }
+  for (auto it = parts.rbegin(); it != parts.rend(); ++it) {
+    if (!result.object_path.empty()) result.object_path += '.';
+    result.object_path += *it;
+  }
+  return result;
+}
 
 Archive::Archive(const std::string &name, std::stringstream input,
                  const ArchiveLoader &archive_loader)
@@ -152,21 +196,33 @@ auto Archive::operator>>(ObjectExport &object_export) -> Archive & {
 }
 
 auto Archive::operator>>(char &value) -> Archive & {
+  require_bytes(1);
   m_input >> value;
   return *this;
 }
 
 auto Archive::operator>>(float &value) -> Archive & {
+  require_bytes(4);
   m_input.read(reinterpret_cast<char *>(&value), sizeof(value));
   return *this;
 }
 
 auto Archive::operator>>(bool &value) -> Archive & {
+  require_bytes(1);
   *this >> extract<llvm::little8_t>(value);
   return *this;
 }
 
 auto Archive::operator>>(std::string &value) -> Archive & {
+  if (m_read_limit >= 0) {
+    Index count{}; *this >> count;
+    if (count.value < 0 || count.value > 16 * 1024 * 1024) throw std::runtime_error("Invalid bounded Unreal string size");
+    require_bytes(static_cast<std::size_t>(count.value));
+    value.resize(static_cast<std::size_t>(count.value));
+    m_input.read(value.data(), count.value);
+    if (!value.empty()) value.pop_back();
+    return *this;
+  }
   *this >> extract_array<Index, llvm::little8_t>(value);
 
   if (!value.empty()) {
@@ -177,41 +233,49 @@ auto Archive::operator>>(std::string &value) -> Archive & {
 }
 
 auto Archive::operator>>(std::int8_t &value) -> Archive & {
+  require_bytes(1);
   *this >> extract<llvm::little8_t>(value);
   return *this;
 }
 
 auto Archive::operator>>(std::int16_t &value) -> Archive & {
+  require_bytes(2);
   *this >> extract<llvm::little16_t>(value);
   return *this;
 }
 
 auto Archive::operator>>(std::int32_t &value) -> Archive & {
+  require_bytes(4);
   *this >> extract<llvm::little32_t>(value);
   return *this;
 }
 
 auto Archive::operator>>(std::int64_t &value) -> Archive & {
+  require_bytes(8);
   *this >> extract<llvm::little64_t>(value);
   return *this;
 }
 
 auto Archive::operator>>(std::uint8_t &value) -> Archive & {
+  require_bytes(1);
   *this >> extract<llvm::ulittle8_t>(value);
   return *this;
 }
 
 auto Archive::operator>>(std::uint16_t &value) -> Archive & {
+  require_bytes(2);
   *this >> extract<llvm::ulittle16_t>(value);
   return *this;
 }
 
 auto Archive::operator>>(std::uint32_t &value) -> Archive & {
+  require_bytes(4);
   *this >> extract<llvm::ulittle32_t>(value);
   return *this;
 }
 
 auto Archive::operator>>(std::uint64_t &value) -> Archive & {
+  require_bytes(8);
   *this >> extract<llvm::ulittle64_t>(value);
   return *this;
 }

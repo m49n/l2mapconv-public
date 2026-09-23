@@ -28,7 +28,9 @@ struct TerrainLayer {
   float u_pan, v_pan;
   float texture_rotation;
   Rotator layer_rotation;
-  Matrix terrain_matrix;
+  Matrix terrain_matrix{};
+  bool has_terrain_matrix{};
+  Vector layer_scale{};
   float friction;
   float restitution;
   ObjectRef<Texture> layer_weight_map;

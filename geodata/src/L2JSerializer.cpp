@@ -2,6 +2,7 @@
 
 #include "Compressor.h"
 #include "L2JSerializer.h"
+#include "PackedHeight.h"
 
 namespace geodata {
 
@@ -127,6 +128,8 @@ auto L2JSerializer::read_complex_block_cell(std::istream &input,
 
 void L2JSerializer::write_complex_block_cell(std::ostream &output,
                                              const Cell &cell) const {
+
+  validate_packed_height(cell);
 
   // Calculate NSWE
   const std::uint8_t nswe =

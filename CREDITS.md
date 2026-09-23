@@ -42,6 +42,11 @@ No Java source from GeodataConverter is copied into this project either.
 
 ## Bundled dependencies
 
+- [JSON for Modern C++](https://github.com/nlohmann/json/releases/tag/v3.12.0)
+  by Niels Lohmann and contributors, version 3.12.0, MIT license.
+  Vendored unmodified single header SHA-256:
+  `aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63`.
+
 - [Recast Navigation](https://github.com/recastnavigation/recastnavigation)
 - [cxxopts](https://github.com/jarro2783/cxxopts)
 - [GLEW CMake](https://github.com/Perlmint/glew-cmake)
@@ -50,12 +55,15 @@ No Java source from GeodataConverter is copied into this project either.
 - [Dear ImGui](https://github.com/ocornut/imgui)
 - [stb](https://github.com/nothings/stb)
 
-Each dependency remains at the Git submodule revision recorded by this
+Except for the pinned JSON header above, each dependency remains at the Git submodule revision recorded by this
 repository and retains its own upstream license.
 
 ## Historical implementation references
 
 - [L2PackageTools](https://github.com/Bigcheese/L2PackageTools)
 - [l2mapper](https://github.com/justgos/l2mapper)
+  also provided independent terrain UV control-point mathematics
+  (`UTerrainSector::Init`). The restricted P542 mapping is implemented in C++
+  here without copying its renderer; retail shader parity is not implied.
 - [UT Package Tool](https://www.acordero.org/projects/unreal-tournament-package-tool)
 - Unreal Tournament 2003

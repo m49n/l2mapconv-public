@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -149,5 +150,26 @@ auto run_pts_geodata_tests() -> int {
       std::distance(std::filesystem::directory_iterator{output_directory},
                     std::filesystem::directory_iterator{}) == 2,
       "failed export removes its staging directory");
+
+  buffer.set_block_type(2, 0, geodata::BLOCK_SIMPLE);
+  buffer.set_block_height(0, 0, 20000);
+  auto height_overflow_rejected = false;
+  try {
+    exporter.export_geodata(buffer, "24_20");
+  } catch (const std::runtime_error &error) {
+    height_overflow_rejected =
+        std::string{error.what()}.find("outside the packed range") !=
+        std::string::npos;
+  }
+  failures += expect(height_overflow_rejected,
+                     "packed-height overflow rejects a staged export");
+  failures +=
+      expect(!std::filesystem::exists(output_directory / "24_20.l2j") &&
+                 !std::filesystem::exists(output_directory / "24_20_conv.dat"),
+             "height overflow publishes neither file");
+  failures += expect(
+      std::distance(std::filesystem::directory_iterator{output_directory},
+                    std::filesystem::directory_iterator{}) == 2,
+      "height overflow removes partial files and staging directory");
   return failures;
 }

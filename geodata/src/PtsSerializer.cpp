@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "PtsSerializer.h"
+#include "PackedHeight.h"
 
 #include <stdexcept>
 
@@ -21,6 +22,7 @@ void write_u32(std::ostream &output, std::uint32_t value) {
 }
 
 void write_cell(std::ostream &output, const Cell &cell) {
+  validate_packed_height(cell);
   const auto nswe = static_cast<std::uint16_t>(
       (cell.north ? DIRECTION_N : 0) | (cell.south ? DIRECTION_S : 0) |
       (cell.west ? DIRECTION_W : 0) | (cell.east ? DIRECTION_E : 0));

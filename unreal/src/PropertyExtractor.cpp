@@ -47,6 +47,7 @@ void PropertyExtractor::deserialize(Property &property) const {
   }
 
   std::istream &input = m_archive;
+  m_archive.require_bytes(property.size);
 
   switch (property.type) {
   case PropertyType::Byte: {
@@ -67,6 +68,8 @@ void PropertyExtractor::deserialize(Property &property) const {
     m_archive >> property.array_size;
     const auto size_size = input.tellg() - start_position;
     const auto array_size = property.size - size_size;
+    if (array_size < 0) throw std::runtime_error("Invalid Unreal property array size");
+    m_archive.require_bytes(static_cast<std::size_t>(array_size));
 
     if (property.name == "Materials") {
       property.subproperties.reserve(property.array_size);
@@ -90,7 +93,9 @@ void PropertyExtractor::deserialize(Property &property) const {
       m_archive >> property.rotator_value;
     } else if (property.struct_name == "Vector") {
       m_archive >> property.vector_value;
-    } else if (property.struct_name == "TerrainLayer") {
+    } else if (property.struct_name == "Color") {
+      m_archive >> property.color_value;
+    } else if (property.struct_name == "TerrainLayer" || property.struct_name == "Matrix" || property.struct_name == "Plane") {
       property.subproperties.push_back(extract_properties_map());
     } else {
       utils::Log(utils::LOG_DEBUG, "Unreal")

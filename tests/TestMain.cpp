@@ -29,6 +29,10 @@ auto near(const glm::vec3 &actual, const glm::vec3 &expected,
 } // namespace
 
 auto main(int argc, char **argv) -> int {
+  if (argc == 4 && std::string_view{argv[1]} == "--check-map-collisions") {
+    return run_static_mesh_collision_tests(argv[2], argv[3]) == 0
+               ? EXIT_SUCCESS : EXIT_FAILURE;
+  }
   if (argc == 4 && std::string_view{argv[1]} == "--probe-map-layers") {
     UnrealLoader loader{argv[2]};
     std::cout << "terrain-only\n";
@@ -67,6 +71,7 @@ auto main(int argc, char **argv) -> int {
   failures += run_system_stack_tests();
   failures += run_imported_geodata_tests();
   failures += run_pts_geodata_tests();
+  failures += run_geodata_generation_tests();
   failures += run_recent_clients_tests();
   failures += run_client_startup_tests();
   failures += run_client_session_tests();

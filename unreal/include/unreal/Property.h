@@ -56,6 +56,7 @@ struct Property {
     Index index_value;
     Vector vector_value;
     Rotator rotator_value;
+    Color color_value;
   };
 
   std::vector<std::uint8_t> data_value;

@@ -17,6 +17,8 @@ public:
                        BrowseHandler browse_handler);
 
   auto browse() -> bool;
+  void set_switch_blocked(bool);
+  bool switch_blocked() const;
   auto request_switch(const std::filesystem::path &client_root) -> bool;
   auto current_client() const -> const std::filesystem::path &;
   auto recent_clients() const -> const std::vector<std::filesystem::path> &;
@@ -30,6 +32,7 @@ private:
   BrowseHandler m_browse_handler;
   std::optional<ClientStartupSelection> m_requested_client;
   std::string m_error;
+  bool m_switch_blocked{};
 };
 
 struct PreviewSessionResult {

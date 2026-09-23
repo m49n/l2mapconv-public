@@ -110,8 +110,98 @@ files and test heights and passability in the client/server before deployment.
 The `output` directory is created automatically. Existing region outputs are
 never overwritten: run from a fresh working directory or move the old files
 aside before rebuilding a region.
-Texture-complete terrain preview and high-resolution radar-map export are
-separate future work, outside this milestone.
+Builds reject more than 64 layers per column and heights that cannot be
+represented by the output format. Complex/multilayer heights must fit
+`[-16384, 16376]` after quantization; flat blocks retain raw signed 16-bit
+heights. A failed region export publishes neither file, and `--build` reports
+the error with a nonzero exit code. Earlier completed regions remain intact.
+Texture-complete interactive preview remains separate from the territory
+exporter below. Neither path claims exact retail shader parity.
+
+## Territory / radar rendering (Windows 10+)
+
+The ready build is `build/territory-render/install/l2mapconv.exe`. Keep its
+installed resource directory alongside the executable. No installation into
+the Lineage II client is needed. Territory rendering works even when the
+interactive viewer was built with `L2MAPCONV_LOAD_TEXTURES=OFF`.
+
+In the viewer, mark squares in **Maps**, then use **Territory Render**:
+
+- Choose **4K / 8K / 16K** (4096 / 8192 / 16384 pixels, default 8K).
+- Choose an output folder outside the client; toggle supported water surfaces.
+- **Render selected** exports the manually checked maps, one at a time, with
+  full visual geometry regardless of preview residency or visibility settings.
+- **Inspect textures** checks references/material support without a GPU render.
+- Progress, issues, **Cancel**, and **Open output folder** belong to this job.
+  Changing map checkboxes does not change an active job. Client switching is
+  disabled until the job finishes. Closing the viewer terminates its own worker.
+
+The same backend is available to scripts and agents:
+
+```powershell
+.\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 8192 -- 22_22
+.\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 16384 --no-water -- 22_22 24_18
+.\l2mapconv.exe --inspect-territory --client-root 'D:\clients\sam' --output 'D:\radar-audit' -- 22_22
+```
+
+New public commands emit exactly one JSON result to stdout; diagnostics go to
+stderr. Exit codes: **0** completed (possibly with warnings), **2** invalid
+input/startup, **3** execution failure, **130** cancellation. Inspect rejects
+render-only options. `--preview` and `--build` retain their existing behavior.
+The internal `--render-job <absolute-directory>` route is for owned UI workers,
+not an alternative public command-line syntax.
+
+Each run creates a new `render-<unique-id>` directory; outputs never overwrite
+an earlier run or client data. It contains immutable `request.json`, atomic
+`status.json`, a final `report.json`, per-map report checkpoints and, for
+completed rendered maps, `<map>_<resolution>.png`. UI workers also write
+`worker.log`. The result's `files` array lists both images and JSON reports;
+filter by `.png` when collecting images. `schema_version` is currently 1.
+Reports distinguish missing packages/objects, unsupported/corrupt data and
+explicit simplifications, and record primary map SHA-256, bounds, density,
+resolution, GPU, water evidence and processed/unprocessed maps. The hash is of
+the primary `.unr`, **not** a complete texture-package manifest.
+
+Each map's `material_inventory` includes successful and non-textured materials,
+their class/reference chains, resolved node graphs and render states, referring
+surfaces, and texture identities/dimensions/encodings/color-space usages. Equal
+material variants are deduplicated; `library_ids` preserves their scene aliases.
+Texture IDs in graphs refer to the same map's texture inventory. Referenced but
+omitted effects are marked `not_evaluated`, not claimed as loaded. Per-map
+checkpoints contain only that map; `report.json` aggregates the job.
+On GPUs with fewer available texture slots, over-limit materials use an
+explicitly reported neutral fallback. Ordinary materials do not reserve a
+terrain-mask slot. Inspect reports asset support without initializing a GPU;
+hardware-specific fallbacks are added by rendering.
+
+Images are lossless RGB8 PNG with sRGB metadata, tiled native-resolution
+rasterization, linear-light blending, mip filtering and up to 4x MSAA.
+North is at the top (-Y). Tile rendering bounds memory instead of creating a
+single 16K GPU framebuffer. Finished files survive later-map failure/cancel;
+an unfinished PNG is not published. Force-terminated jobs may retain temporary
+files in their own job directory; those are not finished results.
+
+Verified on Samurai Crow P542 `22_22`: 4K, 8K and 16K outputs decode at their
+exact native sizes. The material loader supports highest mips, P8/RGBA8/L8 and
+DXT1/3/5, supported Shader/FinalBlend/Combiner graphs, opacity, actor skin slots
+and the evidenced regular-grid terrain projection. Unsupported graph branches
+are diagnosed rather than silently replaced with unrelated textures.
+
+Known visual limits:
+
+- `T_texture.Texture.G_01` is unresolved in the tested client and renders as a
+  neutral fallback, visible as pale terrain patches. A larger PNG does not fix
+  a missing material.
+- Water on `22_22` uses 109 actual horizontal BSP surfaces with the verified
+  `FX_E_T.WaterSurfaceShaderSet.WaterShader01` material, cross-checked against
+  physical water volumes. Volume bounds themselves are not drawn. Other water
+  profiles are not automatically inferred from names.
+- Lighting is a neutral approximation; retail lightmaps/fog, dynamic water
+  reflection/refraction/waves, some animated/material effects and unusual
+  terrain projections remain simplified or unsupported. Fixed-time modifiers
+  use time zero; unsupported oscillators preserve their base coordinates.
+- Intersecting transparent geometry uses approximate draw ordering. This is
+  a map export tool, not a pixel-identical recreation of the client renderer.
 
 ## Project building
 
@@ -133,6 +223,9 @@ cmake --build build/preview-core --parallel
 
 cmake -S . -B build/preview-textured -G Ninja -D CMAKE_BUILD_TYPE=Release -D L2MAPCONV_LOAD_TEXTURES=ON -D CMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang.exe" -D CMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang++.exe"
 cmake --build build/preview-textured --parallel
+
+cmake -S . -B build/territory-render -G Ninja -D CMAKE_BUILD_TYPE=Release -D L2MAPCONV_LOAD_TEXTURES=OFF -D CMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang.exe" -D CMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang++.exe"
+cmake --build build/territory-render --parallel
 ```
 
 ### macOS/Linux
@@ -151,6 +244,33 @@ cmake --build build --parallel
 - `L2MAPCONV_LOAD_TEXTURES` — loads textures for supported static meshes and
   BSP surfaces. Keep a separate texture-disabled build as the reliable
   geometry inspection profile.
+
+### Tests
+
+Build `l2mapconv_tests`, then run `ctest --test-dir build/preview-core
+--output-on-failure`. The portable tests cover NSWE landing surfaces, layer
+capacity, height encoding, and export failure cleanup without client assets.
+
+To additionally check real actor collisions and build-error diagnostics, set
+`L2MAPCONV_TEST_CLIENT_ROOT` to a local Samurai Crow EU P542 `sam` directory
+when configuring CMake. Build both `l2mapconv` and `l2mapconv_tests` before
+running CTest. These optional fixtures require `24_18` and `25_19`; the latter
+must contain meshes shared by actors with different collision policies.
+Client assets are read-only and are not distributed with the tests.
+
+Territory CPU/controller/CLI tests run under the same CTest suite. Real GPU
+checks are opt-in. `territory_png_compare <image> [second-image]` independently
+decodes PNGs using stb and prints JSON dimensions, channel statistics and
+optional pixel deltas. For all three resolutions, water on/off, synthetic
+tiled/color fixtures and L2J regression against a known baseline:
+
+```powershell
+.\tests\territory\Acceptance.ps1 -App 'D:\repo\build\territory-render\install\l2mapconv.exe' -Client 'D:\clients\sam' -Output 'D:\new-acceptance-run' -BaselineGeo 'D:\baseline\output'
+```
+
+Use a new output directory; `-SkipGeo` runs only the rendering checks. The
+script's `G_01` assertion intentionally targets the tested P542 client. UI
+interaction and client-asset identity checks are separate from this script.
 
 ## Dependencies
 

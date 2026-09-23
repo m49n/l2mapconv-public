@@ -17,9 +17,25 @@ add_subdirectory(recast)
 # Apply Recast patch
 find_package(Git REQUIRED)
 execute_process(
-    COMMAND ${GIT_EXECUTABLE} apply ${CMAKE_CURRENT_SOURCE_DIR}/patches/recast.patch
+    COMMAND ${GIT_EXECUTABLE} apply --reverse --check ${CMAKE_CURRENT_SOURCE_DIR}/patches/recast.patch
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/recast
+    RESULT_VARIABLE RECAST_PATCH_PRESENT OUTPUT_QUIET ERROR_QUIET
 )
+if(NOT RECAST_PATCH_PRESENT EQUAL 0)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply --check ${CMAKE_CURRENT_SOURCE_DIR}/patches/recast.patch
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/recast
+        RESULT_VARIABLE RECAST_PATCH_CHECK ERROR_VARIABLE RECAST_PATCH_ERROR
+    )
+    if(NOT RECAST_PATCH_CHECK EQUAL 0)
+        message(FATAL_ERROR "Recast patch conflicts with current sources: ${RECAST_PATCH_ERROR}")
+    endif()
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply ${CMAKE_CURRENT_SOURCE_DIR}/patches/recast.patch
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/recast
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+endif()
 
 # GLFW
 option(GLFW_BUILD_DOCS "Build docs" OFF)
@@ -32,3 +48,4 @@ add_subdirectory(glm)
 add_subdirectory(imgui)
 add_subdirectory(stb)
 add_subdirectory(cxxopts)
+add_subdirectory(json)

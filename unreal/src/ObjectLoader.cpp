@@ -9,54 +9,44 @@
 #include <unreal/ObjectLoader.h>
 #include <unreal/StaticMesh.h>
 #include <unreal/Terrain.h>
+#include <stdexcept>
 
 namespace unreal {
+auto ObjectLoader::reference(Index index) const -> AssetReference {
+  return m_archive.object_reference(index);
+}
 
-auto ObjectLoader::load_object(const ObjectImport &import) const
+auto ObjectLoader::load_object(const AssetReference& reference) const
     -> std::shared_ptr<Object> {
 
-  for (auto &object_export : m_archive.export_map) {
-    if (object_export.object_name == import.object_name &&
-        object_export.class_name == import.class_name &&
+  for (std::size_t i = 0; i < m_archive.export_map.size(); ++i) {
+    auto& object_export = m_archive.export_map[i];
+    const auto leaf = std::string_view(reference.object_path).substr(reference.object_path.find_last_of('.') + 1);
+    if (object_export.object_name == leaf && object_export.class_name == reference.class_name &&
         object_export.class_name != "Package") {
-
-      return export_object(object_export);
+      const auto candidate = m_archive.object_reference(Index{static_cast<std::int32_t>(i + 1)});
+      if (candidate.package == reference.package && candidate.object_path == reference.object_path)
+        return export_object(object_export);
     }
   }
 
   utils::Log(utils::LOG_WARN, "Unreal")
-      << "Can't find object: " << import.object_name << std::endl;
+      << "Can't find object: " << reference.package << '.' << reference.object_path << std::endl;
   return nullptr;
 }
 
 auto ObjectLoader::load_object(Index index) const -> std::shared_ptr<Object> {
-  ASSERT(index != 0, "Unreal", "Index can't be equal to zero");
+  if (index == 0) throw std::runtime_error("Null Unreal object index");
+  const auto identity = m_archive.object_reference(index); // validates the complete outer chain
 
   if (index < 0) {
-    ASSERT(static_cast<std::size_t>(-index) <= m_archive.import_map.size(),
-           "Unreal", "Index out of import_map bounds");
-    const auto &import = m_archive.import_map[-index - 1];
-
-    ASSERT(import.package_index != 0, "Unreal",
-           "Package index can't be equal to zero");
-    const auto *package_import = &import;
-
-    do {
-      ASSERT(static_cast<std::size_t>(-package_import->package_index) <=
-                 m_archive.import_map.size(),
-             "Unreal", "Package index out of import_map bounds");
-      package_import =
-          &m_archive.import_map[-package_import->package_index - 1];
-    } while (package_import->package_index != 0);
-
-    const auto *archive =
-        m_archive_loader.load_archive(std::string{package_import->object_name});
+    const auto *archive = m_archive_loader.load_archive(identity.package);
 
     if (archive == nullptr) {
       return nullptr;
     }
 
-    return archive->object_loader.load_object(import);
+    return archive->object_loader.load_object(identity);
   }
 
   if (index > 0) {
@@ -82,6 +72,10 @@ auto ObjectLoader::export_object(ObjectExport &object_export) const
     object = std::make_shared<Model>(m_archive);
   } else if (object_export.class_name == "Texture") {
     object = std::make_shared<Texture>(m_archive);
+  } else if (object_export.class_name == "Palette") {
+    object = std::make_shared<Palette>(m_archive);
+  } else if (object_export.class_name == "ConstantColor") {
+    object = std::make_shared<ConstantColor>(m_archive);
   } else if (object_export.class_name == "TexModifier" ||
              object_export.class_name == "TexPanner" ||
              object_export.class_name == "TexPannerTriggered" ||
@@ -121,14 +115,28 @@ auto ObjectLoader::export_object(ObjectExport &object_export) const
 
   object->name = object_export.object_name;
   object->flags = object_export.object_flags;
+  const auto item = std::find_if(m_archive.export_map.begin(), m_archive.export_map.end(),
+      [&](const auto& entry) { return &entry == &object_export; });
+  if (item == m_archive.export_map.end()) throw std::runtime_error("Export does not belong to archive");
+  object->m_reference = m_archive.object_reference(Index{static_cast<std::int32_t>(item - m_archive.export_map.begin() + 1)});
+  const auto begin = static_cast<std::streamoff>(object_export.serial_offset.value);
+  const auto size = static_cast<std::streamoff>(object_export.serial_size.value);
+  if (begin < 0 || size < 0 || begin > m_archive.size() || size > m_archive.size() - begin)
+    throw std::runtime_error("Unreal export serial range exceeds archive: " + object->full_name());
+  object->m_serial_begin = begin;
+  object->m_serial_end = begin + size;
 
   if (object_export.serial_size > 0) {
+    static_cast<std::istream&>(m_archive).clear();
     static_cast<std::istream &>(m_archive).seekg(
         object_export.serial_offset.value);
+    if (std::dynamic_pointer_cast<Material>(object) || std::dynamic_pointer_cast<Palette>(object)) {
+      Archive::ReadLimit limit(m_archive, object->serial_end());
+      object->deserialize();
+    } else {
+      object->deserialize();
+    }
   }
-
-  object->deserialize();
-
   object_export.object = object;
   return object_export.object;
 }

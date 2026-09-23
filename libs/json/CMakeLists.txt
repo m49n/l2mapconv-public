@@ -1,0 +1,2 @@
+add_library(l2mapconv_json INTERFACE)
+target_include_directories(l2mapconv_json SYSTEM INTERFACE include)

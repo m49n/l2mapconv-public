@@ -14,6 +14,7 @@
 
 #include <geometry/Box.h>
 
+#include <array>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -31,7 +32,10 @@ public:
 private:
   unreal::PackageLoader m_package_loader;
 
-  mutable std::unordered_map<std::string, std::shared_ptr<EntityMesh>>
+  // PASSABLE belongs to the actor's collision policy as well as the material.
+  // Share mesh data only between actors with the same effective policy.
+  mutable std::array<
+      std::unordered_map<std::string, std::shared_ptr<EntityMesh>>, 2>
       m_mesh_cache;
   mutable std::unordered_map<std::string, std::shared_ptr<EntityMesh>>
       m_bb_mesh_cache;

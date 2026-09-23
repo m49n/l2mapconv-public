@@ -18,6 +18,9 @@
 #include "UISystem.h"
 #include "WindowContext.h"
 #include "WindowSystem.h"
+#include "TerritoryRenderController.h"
+#include "TerritoryRenderWindow.h"
+#include "ExecutablePath.h"
 
 #include "UnrealMapSource.h"
 
@@ -82,6 +85,8 @@ auto Application::preview(const std::filesystem::path &client_root,
     GeodataContext geodata_context{};
 
     Renderer renderer{rendering_context, m_resource_root};
+    TerritoryRenderController territory_controller{running_executable_path(), make_territory_process()};
+    TerritoryRenderViewState territory_view{{}, m_resource_root / "output" / "radar", {}};
 
     SystemStack systems;
     systems.push(std::make_unique<CameraSystem>(rendering_context,
@@ -94,7 +99,8 @@ auto Application::preview(const std::filesystem::path &client_root,
         seed_coordinate));
     systems.push(std::make_unique<UISystem>(ui_context, window_context,
                                             rendering_context, map_selection,
-                                            client_session));
+                                            client_session, &territory_controller,
+                                            &territory_view));
     systems.push(std::make_unique<RenderingSystem>(rendering_context,
                                                    window_context, ui_context));
     systems.push(std::make_unique<GeodataSystem>(geodata_context, ui_context,

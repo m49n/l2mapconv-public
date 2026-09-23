@@ -35,6 +35,11 @@ add_executable(${PROJECT_NAME}
     src/GeodataEntityFactory.cpp
 
     src/Renderer.cpp
+    src/TerritoryProcess.cpp
+    src/TerritoryRenderController.cpp
+    src/TerritoryCommandLine.cpp
+    src/TerritoryRenderPolicy.cpp
+    src/TerritoryRenderWindow.cpp
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE src/pch.h)
@@ -45,6 +50,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE unreal
     PRIVATE rendering
     PRIVATE geodata
+    PRIVATE territory
 
     PRIVATE glfw
     PRIVATE libglew_static

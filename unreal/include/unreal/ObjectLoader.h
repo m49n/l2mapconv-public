@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Index.h"
+#include "AssetReference.h"
 
 #include <memory>
 #include <ostream>
@@ -22,8 +23,9 @@ public:
   explicit ObjectLoader(Archive &archive, const ArchiveLoader &archive_loader)
       : m_archive{archive}, m_archive_loader{archive_loader} {}
 
-  auto load_object(const ObjectImport &import) const -> std::shared_ptr<Object>;
+  auto load_object(const AssetReference& reference) const -> std::shared_ptr<Object>;
   auto load_object(Index index) const -> std::shared_ptr<Object>;
+  auto reference(Index index) const -> AssetReference;
 
   auto export_object(ObjectExport &object_export) const
       -> std::shared_ptr<Object>;

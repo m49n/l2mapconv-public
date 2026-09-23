@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Index.h"
+#include "AssetReference.h"
 #include "Name.h"
 #include "NameTable.h"
 #include "ObjectLoader.h"
@@ -16,6 +17,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <stdexcept>
 
 namespace unreal {
 
@@ -107,6 +109,19 @@ public:
   operator std::istream &() { return m_input; }
 
   auto object_name(Index index) const -> Name;
+  auto object_reference(Index index) const -> AssetReference;
+  auto size() const -> std::streamoff { return static_cast<std::streamoff>(m_input.view().size()); }
+  void require_bytes(std::size_t count);
+  auto remaining() -> std::streamoff;
+  class ReadLimit {
+  public:
+    ReadLimit(Archive& archive, std::streamoff end) : m_archive(archive), m_previous(archive.m_read_limit) { archive.m_read_limit = end; }
+    ~ReadLimit() { m_archive.m_read_limit = m_previous; }
+    ReadLimit(const ReadLimit&) = delete;
+  private:
+    Archive& m_archive;
+    std::streamoff m_previous;
+  };
 
   auto operator>>(PackageHeader &header) -> Archive &;
   auto operator>>(GUID &guid) -> Archive &;
@@ -131,6 +146,14 @@ public:
   auto operator>>(std::uint64_t &value) -> Archive &;
 
   template <typename T> auto operator>>(std::vector<T> &vector) -> Archive & {
+    if (m_read_limit >= 0) {
+      Index count{}; *this >> count;
+      if (count.value < 0 || count.value > 65536 || count.value > remaining())
+        throw std::runtime_error("Invalid bounded Unreal array count");
+      vector.reserve(static_cast<std::size_t>(count.value));
+      for (int i = 0; i < count.value; ++i) { T item{}; *this >> item; vector.push_back(std::move(item)); }
+      return *this;
+    }
     *this >> extract_array<Index, T>(vector);
     return *this;
   }
@@ -154,6 +177,7 @@ public:
 
 private:
   std::stringstream m_input;
+  std::streamoff m_read_limit{-1};
 };
 
 } // namespace unreal

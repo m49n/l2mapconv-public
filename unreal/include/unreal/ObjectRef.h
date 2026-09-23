@@ -8,6 +8,7 @@
 #include <utils/Log.h>
 
 #include <memory>
+#include <stdexcept>
 
 namespace unreal {
 
@@ -24,10 +25,30 @@ public:
 
   auto operator->() const -> std::shared_ptr<T> { return load_object<T>(); }
   operator std::shared_ptr<T>() const { return load_object<T>(); }
-  operator T &() const { return *load_object<T>(); }
+  operator T &() const {
+    auto object = load_object<T>();
+    if (!object) throw std::runtime_error("Unresolved required Unreal object");
+    return *object;
+  }
 
   template <typename U> auto as() const -> std::shared_ptr<U> {
     return load_object<U>();
+  }
+  auto reference() const -> AssetReference {
+    return m_object_loader && m_index != 0 ? m_object_loader->reference(m_index) : AssetReference{};
+  }
+  auto has_reference() const -> bool { return m_index != 0; }
+  auto untyped() const -> std::shared_ptr<Object> {
+    if (m_index == 0) {
+      if constexpr (requirement == ObjectRefRequirement::Optional) return nullptr;
+      throw std::runtime_error("Null required Unreal object reference");
+    }
+    if (!m_object_loader) throw std::runtime_error("Uninitialized Unreal object loader");
+    if (!m_load_attempted) {
+      m_object = m_object_loader->load_object(m_index);
+      m_load_attempted = true;
+    }
+    return m_object;
   }
 
   void from_property(const Property &property, Archive &archive) {
@@ -53,23 +74,11 @@ private:
   Index m_index;
   const ObjectLoader *m_object_loader;
 
-  mutable std::shared_ptr<T> m_object;
+  mutable std::shared_ptr<Object> m_object;
+  mutable bool m_load_attempted{false};
 
   template <typename U> auto load_object() const -> std::shared_ptr<U> {
-    if (requirement == ObjectRefRequirement::Optional && m_index == 0) {
-      return nullptr;
-    }
-
-    if (m_object == nullptr) {
-      ASSERT(m_object_loader != nullptr, "Unreal",
-             "Object loader must be initialized");
-      ASSERT(m_index != 0, "Unreal", "Index can't be equal to zero");
-
-      m_object =
-          std::dynamic_pointer_cast<U>(m_object_loader->load_object(m_index));
-    }
-
-    return std::dynamic_pointer_cast<U>(m_object);
+    return std::dynamic_pointer_cast<U>(untyped());
   }
 };
 

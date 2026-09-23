@@ -40,20 +40,36 @@ auto TerrainInfoActor::set_property(const Property &property) -> bool {
   }
 
   if (property.name == "Layers") {
+    if(property.array_index.value < 0 || property.array_index.value >= 32 || property.subproperties.empty())
+      throw std::runtime_error("Invalid terrain layer slot");
     TerrainLayer layer{};
-
-    layer.texture.from_property(property.subproperty("Texture"), archive);
-    layer.alpha_map.from_property(property.subproperty("AlphaMap"), archive);
-    layer.u_scale = property.subproperty("UScale").float_value;
-    layer.v_scale = property.subproperty("VScale").float_value;
-    layer.u_pan = property.subproperty("UPan").float_value;
-    layer.v_pan = property.subproperty("VPan").float_value;
-    layer.texture_map_axis =
-        property.subproperty("TextureMapAxis").uint8_t_value;
-    layer.texture_rotation =
-        property.subproperty("TextureRotation").float_value;
-
-    layers.push_back(std::move(layer));
+    const auto& fields=property.subproperties.front();
+    auto field=[&](const char* name){auto it=fields.find(name);return it==fields.end()?Property{}:it->second;};
+    layer.texture.from_property(field("Texture"),archive);
+    layer.alpha_map.from_property(field("AlphaMap"),archive);
+    layer.u_scale=field("UScale").float_value; layer.v_scale=field("VScale").float_value;
+    layer.u_pan=field("UPan").float_value; layer.v_pan=field("VPan").float_value;
+    layer.texture_map_axis=field("TextureMapAxis").uint8_t_value;
+    layer.texture_rotation=field("TextureRotation").float_value;
+    layer.layer_rotation=field("LayerRotation").rotator_value;
+    layer.layer_scale=field("Scale").vector_value;
+    const auto matrix=field("TerrainMatrix");
+    if(!matrix.subproperties.empty()) {
+      const char* rows[]={"XPlane","YPlane","ZPlane","WPlane"};
+      const char* cols[]={"X","Y","Z","W"};
+      layer.has_terrain_matrix=true;
+      for(int r=0;r<4;++r) {
+        auto it=matrix.subproperties.front().find(rows[r]);
+        if(it==matrix.subproperties.front().end() || it->second.subproperties.empty()) {layer.has_terrain_matrix=false;break;}
+        for(int c=0;c<4;++c) {
+          auto v=it->second.subproperties.front().find(cols[c]);
+          // Omitted struct float fields have zero value.
+          layer.terrain_matrix.m[r][c]=v==it->second.subproperties.front().end()?0.f:v->second.float_value;
+        }
+      }
+    }
+    if(layers.size()<=static_cast<std::size_t>(property.array_index.value))layers.resize(property.array_index.value+1);
+    layers[property.array_index.value]=std::move(layer);
 
     return true;
   }

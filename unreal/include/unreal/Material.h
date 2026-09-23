@@ -11,28 +11,45 @@
 #include <vector>
 
 namespace unreal {
+class Material;
+using MaterialReference = ObjectRef<Material, ObjectRefRequirement::Optional>;
 
 class Material : public Object {
 public:
-  ObjectRef<Material> fallback_material;
-  ObjectRef<Material> default_material;
+  MaterialReference fallback_material;
+  MaterialReference default_material;
 
   explicit Material(Archive &archive) : Object{archive} {}
+  void deserialize() override;
+  auto set_property(const Property&) -> bool override;
 };
 
 class Combiner : public Material {
 public:
   ObjectRef<Material, ObjectRefRequirement::Optional> material1;
   ObjectRef<Material, ObjectRefRequirement::Optional> material2;
+  MaterialReference mask;
+  std::uint8_t combine_operation{}, alpha_operation{};
+  bool invert_mask{}, modulate_2x{}, modulate_4x{};
 
   explicit Combiner(Archive &archive) : Material{archive} {}
 
   virtual auto set_property(const Property &property) -> bool override;
 };
 
+class ConstantColor : public Material {
+public:
+  Color color{255,255,255,255};
+  explicit ConstantColor(Archive& archive) : Material(archive) {}
+  auto set_property(const Property&) -> bool override;
+};
+
 class Modifier : public Material {
 public:
   ObjectRef<Material, ObjectRefRequirement::Optional> material;
+  float u_scale{1.f}, v_scale{1.f}, u_offset{}, v_offset{}, pan_rate{.1f};
+  Rotator rotation{}, pan_direction{};
+  std::uint8_t rotation_type{}, tex_coord_source{};
 
   explicit Modifier(Archive &archive) : Material{archive} {}
 
@@ -97,11 +114,11 @@ enum TextureClampMode {
 
 class BitmapMaterial : public RenderedMaterial {
 public:
-  std::uint8_t format;
-  std::uint8_t u_clamp_mode, v_clamp_mode;
-  std::uint8_t u_bits, v_bits;   // # of bits in size, i.e. 8 for 256
-  std::int32_t u_size, v_size;   // Size, must be power of 2
-  std::int32_t u_clamp, v_clamp; // Clamped width, must be <= size
+  std::uint8_t format{TEXF_P8};
+  std::uint8_t u_clamp_mode{TC_Wrap}, v_clamp_mode{TC_Wrap};
+  std::uint8_t u_bits{}, v_bits{};   // # of bits in size, i.e. 8 for 256
+  std::int32_t u_size{}, v_size{};   // Size, must be power of 2
+  std::int32_t u_clamp{}, v_clamp{}; // Clamped width, must be <= size
 
   explicit BitmapMaterial(Archive &archive) : RenderedMaterial{archive} {}
 
@@ -145,7 +162,7 @@ enum LODSet {
 class Texture : public BitmapMaterial {
 public:
   // Palette
-  ObjectRef<Palette> palette; // Palette if 8-bit palettized
+  ObjectRef<Palette, ObjectRefRequirement::Optional> palette; // Palette if 8-bit palettized
 
   // Detail texture
   ObjectRef<Material> detail; // Detail texture to apply
@@ -157,7 +174,7 @@ public:
   double last_update_time; // Last time texture was locked for rendering
 
   // Texture flags
-  bool masked;
+  bool masked{false};
   bool alpha_texture;
   bool two_sided; // Texture should be rendered two sided when placed directly
                   // on a surface
@@ -211,21 +228,16 @@ enum OutputBlending {
 
 class Shader : public RenderedMaterial {
 public:
-  std::uint8_t output_blending;
-  ObjectRef<Texture, ObjectRefRequirement::Optional> diffuse;
-  ObjectRef<Texture> opacity;
-  ObjectRef<Texture> specular;
-  ObjectRef<Texture> specular_mask;
-  ObjectRef<Texture> self_illumination;
-  ObjectRef<Texture> self_illumination_mask;
-  ObjectRef<Texture> detail;
+  std::uint8_t output_blending{OB_Normal};
+  MaterialReference diffuse, opacity, specular, specular_mask;
+  MaterialReference self_illumination, self_illumination_mask, detail;
   float detail_scale;
-  bool two_sided;
-  bool wire_frame;
-  bool modulate_static_lighting_2x;
-  bool perform_lighting_on_specular_pass;
-  bool modulate_specular_2x;
-  bool treat_as_two_sided;
+  bool two_sided{false};
+  bool wire_frame{false};
+  bool modulate_static_lighting_2x{true};
+  bool perform_lighting_on_specular_pass{false};
+  bool modulate_specular_2x{false};
+  bool treat_as_two_sided{false};
   bool z_write;
   bool alpha_test;
   std::uint8_t alpha_ref;

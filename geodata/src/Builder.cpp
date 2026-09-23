@@ -5,6 +5,11 @@
 
 #include <geodata/Builder.h>
 
+#include <cmath>
+#include <limits>
+#include <stdexcept>
+#include <string>
+
 namespace geodata {
 
 auto Builder::build(const Map &map, const BuilderSettings &settings) const
@@ -53,11 +58,20 @@ auto Builder::build(const Map &map, const BuilderSettings &settings) const
           black_holes++;
         }
 
+        const auto height = cell_elevation + span->smax * settings.cell_height;
+        if (!std::isfinite(height) ||
+            height < std::numeric_limits<std::int16_t>::min() ||
+            height > std::numeric_limits<std::int16_t>::max()) {
+          throw std::runtime_error{"Geodata height " + std::to_string(height) +
+                                   " in map " + map.name() + " at cell " +
+                                   std::to_string(x) + "," + std::to_string(y) +
+                                   " cannot be represented as int16"};
+        }
+
         geodata.cells.push_back({
             static_cast<std::int16_t>(x), //
             static_cast<std::int16_t>(y), //
-            static_cast<std::int16_t>(cell_elevation +
-                                      span->smax * settings.cell_height), //
+            static_cast<std::int16_t>(height),                            //
             BLOCK_MULTILAYER,                                             //
             (nswe & DIRECTION_N) != 0,                                    //
             (nswe & DIRECTION_W) != 0,                                    //

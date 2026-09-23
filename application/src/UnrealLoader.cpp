@@ -397,7 +397,11 @@ auto UnrealLoader::load_mesh_actor_entities(
     const auto bounding_box = to_box(unreal_mesh->bounding_box);
 
     const auto &mesh_name = unreal_mesh->full_name();
-    auto cached_mesh = m_mesh_cache.find(mesh_name);
+    const auto actor_collides = mesh_actor->collide_actors &&
+                                mesh_actor->block_actors &&
+                                mesh_actor->block_players;
+    auto &mesh_cache = m_mesh_cache[actor_collides ? 1 : 0];
+    auto cached_mesh = mesh_cache.find(mesh_name);
     auto cached_bb_mesh = m_bb_mesh_cache.find(mesh_name);
 
     if (cached_bb_mesh == m_bb_mesh_cache.end()) {
@@ -405,9 +409,9 @@ auto UnrealLoader::load_mesh_actor_entities(
       cached_bb_mesh = m_bb_mesh_cache.insert({mesh_name, bb_mesh}).first;
     }
 
-    if (cached_mesh == m_mesh_cache.end()) {
+    if (cached_mesh == mesh_cache.end()) {
       const auto mesh = std::make_shared<EntityMesh>();
-      cached_mesh = m_mesh_cache.insert({mesh_name, mesh}).first;
+      cached_mesh = mesh_cache.insert({mesh_name, mesh}).first;
 
       // Bounding box
       mesh->bounding_box = bounding_box;
@@ -753,7 +757,7 @@ auto UnrealLoader::load_material(
   } else if (std::shared_ptr<unreal::Shader> unreal_shader =
                  std::dynamic_pointer_cast<unreal::Shader>(unreal_material)) {
 
-    if (const auto texture = load_texture(unreal_shader->diffuse)) {
+    if (const auto texture = load_texture(unreal_shader->diffuse.as<unreal::Texture>())) {
       material.texture = *texture;
       return material;
     }

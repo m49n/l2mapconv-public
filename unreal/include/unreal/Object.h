@@ -95,12 +95,19 @@ public:
   virtual auto set_property(const Property &) -> bool { return false; }
 
   auto full_name() const -> std::string;
+  auto asset_reference() const -> const AssetReference& { return m_reference; }
+  auto serial_begin() const -> std::streamoff { return m_serial_begin; }
+  auto serial_end() const -> std::streamoff { return m_serial_end; }
 
   friend auto operator<<(std::ostream &output, const Object &object)
       -> std::ostream &;
 
 protected:
   Archive &archive;
+private:
+  friend class ObjectLoader;
+  AssetReference m_reference;
+  std::streamoff m_serial_begin{-1}, m_serial_end{-1};
 };
 
 } // namespace unreal

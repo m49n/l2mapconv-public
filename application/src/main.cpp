@@ -7,8 +7,10 @@
 #include "DesktopStartup.h"
 #include "ExecutablePath.h"
 #include "RecentClients.h"
+#include "TerritoryCommandLine.h"
 
 #include <cstdlib>
+#include <exception>
 
 namespace {
 
@@ -84,6 +86,9 @@ auto run_desktop(const Application &application) -> int {
 } // namespace
 
 auto main(int argc, char **argv) -> int {
+  if (auto result = dispatch_territory_command(territory_utf8_arguments(argc, argv))) {
+    return *result;
+  }
   const Application application{running_executable_directory()};
   const std::vector<std::string> arguments{argv, argv + argc};
   if (is_desktop_invocation(arguments)) {
@@ -120,6 +125,9 @@ auto main(int argc, char **argv) -> int {
   // Help
   if (input.count("help") > 0) {
     std::cout << options.help() << std::endl;
+    std::cout << "Territory tools (stdout: one JSON result; exit 0/2/3/130):\n"
+                 "  --render-territory --client-root <sam> --output <dir> [--resolution 4096|8192|16384] [--no-water] -- dd_dd [...]\n"
+                 "  --inspect-territory --client-root <sam> --output <dir> -- dd_dd [...]\n";
     return EXIT_SUCCESS;
   }
 
@@ -191,8 +199,13 @@ auto main(int argc, char **argv) -> int {
                                 std::move(*selection), maps);
   }
   if (build) {
-    application.build(client_root, maps);
-    return EXIT_SUCCESS;
+    try {
+      application.build(client_root, maps);
+      return EXIT_SUCCESS;
+    } catch (const std::exception &error) {
+      std::cerr << "Geodata build failed: " << error.what() << std::endl;
+      return EXIT_FAILURE;
+    }
   }
 
   ASSERT(false, "App", "Unknown command");
