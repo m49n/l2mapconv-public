@@ -27,7 +27,8 @@ foreach ($resolution in 4096,8192,16384) {
     $report = Get-Content -LiteralPath $result.report -Raw | ConvertFrom-Json
     $inventory = $report.maps[0].material_inventory
     if (-not $inventory -or $inventory.textures.Count -lt 100 -or @($inventory.materials | Where-Object { $_.state -eq 'supported' -and $_.reference_chain.Count -gt 1 -and $_.surfaces.Count -gt 0 }).Count -eq 0) { throw 'Production material inventory is missing resolved chains and texture identities' }
-    if (@($report.issues | Where-Object { $_.kind -eq 'missing_object' -and $_.source -like '*G_01*' -and $_.reason }).Count -eq 0) { throw 'Expected explicit missing G_01 diagnosis' }
+    if (@($report.issues | Where-Object { $_.kind -eq 'missing_object' -and $_.source -ieq 'T_texture.Texture.G_01' }).Count -ne 0) { throw 'G_01 must resolve its lowercase client export' }
+    if (@($inventory.textures | Where-Object { $_.source -ieq 'T_texture.Texture.g_01' -and $_.width -eq 256 -and $_.height -eq 256 -and $_.material_ids.Count -gt 0 }).Count -eq 0) { throw 'Expected the real G_01 texture payload in used materials' }
     $results["$resolution"] = @{ result=$result; decoded=$decoded; image=$image }
     Write-Output "Verified native raster $resolution x $resolution at $image"
 }

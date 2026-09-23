@@ -189,9 +189,10 @@ are diagnosed rather than silently replaced with unrelated textures.
 
 Known visual limits:
 
-- `T_texture.Texture.G_01` is unresolved in the tested client and renders as a
-  neutral fallback, visible as pale terrain patches. A larger PNG does not fix
-  a missing material.
+- The tested client's `T_texture.Texture.g_01` is referenced as `G_01` by the
+  map. Import lookup ignores ASCII case while retaining package/group/class
+  identity, so this terrain layer uses the real texture. Earlier exports with
+  pale fallback patches must be regenerated; the client package needs no edit.
 - Water on `22_22` uses 109 actual horizontal BSP surfaces with the verified
   `FX_E_T.WaterSurfaceShaderSet.WaterShader01` material, cross-checked against
   physical water volumes. Volume bounds themselves are not drawn. Other water
@@ -269,7 +270,7 @@ tiled/color fixtures and L2J regression against a known baseline:
 ```
 
 Use a new output directory; `-SkipGeo` runs only the rendering checks. The
-script's `G_01` assertion intentionally targets the tested P542 client. UI
+script's resolved `G_01` texture assertion targets the tested P542 client. UI
 interaction and client-asset identity checks are separate from this script.
 
 ## Dependencies

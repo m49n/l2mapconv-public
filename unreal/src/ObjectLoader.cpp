@@ -10,8 +10,24 @@
 #include <unreal/StaticMesh.h>
 #include <unreal/Terrain.h>
 #include <stdexcept>
+#include <string_view>
 
 namespace unreal {
+namespace {
+// P542 asset identifiers use ASCII names. Preserve their stored spelling, but
+// do not let import/export capitalization prevent a full-identity match.
+bool same_asset_name(std::string_view left, std::string_view right) {
+  if (left.size() != right.size()) return false;
+  auto fold = [](unsigned char c) {
+    return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+  };
+  for (std::size_t i = 0; i < left.size(); ++i)
+    if (fold(static_cast<unsigned char>(left[i])) !=
+        fold(static_cast<unsigned char>(right[i]))) return false;
+  return true;
+}
+} // namespace
+
 auto ObjectLoader::reference(Index index) const -> AssetReference {
   return m_archive.object_reference(index);
 }
@@ -22,10 +38,12 @@ auto ObjectLoader::load_object(const AssetReference& reference) const
   for (std::size_t i = 0; i < m_archive.export_map.size(); ++i) {
     auto& object_export = m_archive.export_map[i];
     const auto leaf = std::string_view(reference.object_path).substr(reference.object_path.find_last_of('.') + 1);
-    if (object_export.object_name == leaf && object_export.class_name == reference.class_name &&
-        object_export.class_name != "Package") {
+    if (same_asset_name(object_export.object_name, leaf) &&
+        same_asset_name(object_export.class_name, reference.class_name) &&
+        !same_asset_name(object_export.class_name, "Package")) {
       const auto candidate = m_archive.object_reference(Index{static_cast<std::int32_t>(i + 1)});
-      if (candidate.package == reference.package && candidate.object_path == reference.object_path)
+      if (same_asset_name(candidate.package, reference.package) &&
+          same_asset_name(candidate.object_path, reference.object_path))
         return export_object(object_export);
     }
   }
