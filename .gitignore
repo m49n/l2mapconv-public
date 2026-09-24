@@ -4,6 +4,7 @@
 .cmake/
 CMakeLists.txt.user
 build/
+dist/
 out/
 *.autosave
 TODO

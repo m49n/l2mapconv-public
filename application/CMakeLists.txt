@@ -85,3 +85,27 @@ option(L2MAPCONV_LOAD_TERRAIN "Load Terrain" ON)
 if(L2MAPCONV_LOAD_TERRAIN)
   add_definitions(-DLOAD_TERRAIN)
 endif()
+
+# One application implements desktop preview, geodata building and radar CLI/UI.
+set(BUILD_IDENTITY_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/BuildIdentity.h")
+add_custom_target(build-identity
+    COMMAND ${CMAKE_COMMAND}
+        "-DGIT=${GIT_EXECUTABLE}" "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        "-DOUTPUT=${BUILD_IDENTITY_HEADER}" "-DLOAD_TEXTURES=${L2MAPCONV_LOAD_TEXTURES}"
+        -P "${CMAKE_SOURCE_DIR}/cmake/BuildIdentity.cmake"
+    BYPRODUCTS "${BUILD_IDENTITY_HEADER}"
+    VERBATIM)
+add_dependencies(${PROJECT_NAME} build-identity)
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
+# Package source resources only, never developer test EXEs or generated outputs.
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION . COMPONENT Runtime)
+if(WIN32)
+    install(FILES $<TARGET_RUNTIME_DLLS:l2mapconv> DESTINATION . COMPONENT Runtime)
+    # Compiler runtime DLLs are not CMake link targets. Use the toolchain's
+    # redistributables, not copies from System32 or an installer on the host.
+    include("${CMAKE_SOURCE_DIR}/cmake/RuntimeLibraries.cmake")
+endif()
+install(DIRECTORY install/ DESTINATION . COMPONENT Runtime)
+install(FILES "${CMAKE_SOURCE_DIR}/README.md" "${CMAKE_SOURCE_DIR}/CREDITS.md"
+    "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION . COMPONENT Runtime)

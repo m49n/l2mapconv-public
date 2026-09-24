@@ -71,6 +71,16 @@ target_link_libraries(window_system_tests PRIVATE
     utils geometry unreal rendering geodata libglew_static glm cxxopts)
 add_test(NAME window_system_tests COMMAND window_system_tests)
 
+add_test(NAME build_identity COMMAND ${CMAKE_COMMAND}
+    "-DAPP=$<TARGET_FILE:l2mapconv>"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/BuildIdentityTests.cmake")
+add_test(NAME runtime_distribution COMMAND ${CMAKE_COMMAND}
+    "-DAPP=$<TARGET_FILE:l2mapconv>" "-DBUILD_DIR=${CMAKE_BINARY_DIR}"
+    "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}" "-DCONFIG=$<CONFIG>"
+    "-DEXE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+    "-DOBJDUMP=${CMAKE_OBJDUMP}"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/DistributionTests.cmake")
+
 add_subdirectory(territory)
 
 set(L2MAPCONV_TEST_CLIENT_ROOT "" CACHE PATH "Optional Samurai Crow P542 client for generation integration tests")

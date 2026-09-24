@@ -22,6 +22,15 @@ Lineage II map previewer and geodata builder.
 
 ## Usage
 
+The single ready-to-run package is `dist/`. Start **`dist/l2mapconv.exe`** for
+map preview, geodata tools and territory/radar rendering. Keep its `shaders`
+and `textures` folders alongside it. Test executables stay under `build/`;
+there are no separate VSync, mouse-test or radar applications to choose from.
+Raw mouse input (when supported) and VSync are enabled in the main viewer.
+The window title and `l2mapconv.exe --version` show the source commit and
+preview profile. `-dirty` means tracked sources or submodules had local changes
+at build time (including the required Recast patch); it is not an error.
+
 Double-click `l2mapconv.exe` to reopen the most recent valid client. On first
 launch, choose the client's `sam` directory. Desktop settings are stored under
 `%LOCALAPPDATA%\l2mapconv\settings.ini`; the client remains read-only.
@@ -45,17 +54,18 @@ l2mapconv.exe --preview/build --client-root <path> -- [maps...]
     --log-level arg    Log level (0 - none, 1 - fatal, 2 - error, 3 -
                        warn, 4 - info, 5 - debug, 6 - all) (default: 3)
     --help             Print help
+    --version          Print build identity
 ```
 
 > Use `--log-level 4` option to print building progress.
 
 ## P542 map preview
 
-The geometry-only profile has been verified locally with `22_22` from the
+The interactive geometry preview has been verified locally with `22_22` from the
 Lineage II Essence Samurai Crow EU P542 client:
 
 ```powershell
-.\build\preview-core\install\l2mapconv.exe --preview --log-level 4 --client-root "D:\line\clients\Lineage II - Essence - Samurai Crow - EU-P542\sam" -- 22_22
+.\dist\l2mapconv.exe --preview --log-level 4 --client-root "D:\line\clients\Lineage II - Essence - Samurai Crow - EU-P542\sam" -- 22_22
 ```
 
 Controls:
@@ -80,20 +90,18 @@ Controls:
   queued/loading/failed work while the background loader keeps the viewer
   responsive.
 
-For a first whole-world pass, use the texture-disabled `preview-core` build,
-press `Select All`, and leave automatic current-map loading enabled. All
+For a first whole-world pass, press `Select All` in the main application and
+leave automatic current-map loading enabled. All
 selected maps are then kept as terrain-only geometry while the current map (and
-the optional `+1` ring) retains full detail. The texture-enabled profile remains
-useful for targeted smoke tests, but is not the recommended way to load the
-whole world.
+the optional `+1` ring) retains full detail. The ready package uses geometry-only
+interactive preview; radar export still loads supported textures and water.
 
 Preview treats the client as read-only input. Debug logging does not dump
 decrypted packages, and automatic ImGui settings persistence is disabled so
 the current working directory is not modified. The log reports actor, vertex,
 and triangle counts for terrain, static meshes, CSG, and Blocking Volumes.
-Unsupported or missing P542 texture references are logged and fall back to
-surface colors; use the geometry-only profile when inspecting collision
-geometry.
+Experimental developer builds with legacy preview textures log unsupported or
+missing P542 texture references and fall back to surface colors.
 
 The Geodata `Reset` and `Build` buttons are disabled in streamed preview mode:
 the visible scene may contain terrain-only regions and is not a complete
@@ -115,12 +123,14 @@ represented by the output format. Complex/multilayer heights must fit
 `[-16384, 16376]` after quantization; flat blocks retain raw signed 16-bit
 heights. A failed region export publishes neither file, and `--build` reports
 the error with a nonzero exit code. Earlier completed regions remain intact.
-Texture-complete interactive preview remains separate from the territory
-exporter below. Neither path claims exact retail shader parity.
+Interactive preview does not yet use the territory exporter's material pipeline.
+Unifying the package does not change preview quality. Neither path claims exact
+retail shader parity.
 
 ## Territory / radar rendering (Windows 10+)
 
-The ready build is `build/territory-render/install/l2mapconv.exe`. Keep its
+The ready build is `dist/l2mapconv.exe`, the same executable as the viewer and
+geodata builder. Keep its
 installed resource directory alongside the executable. No installation into
 the Lineage II client is needed. Territory rendering works even when the
 interactive viewer was built with `L2MAPCONV_LOAD_TEXTURES=OFF`.
@@ -224,15 +234,24 @@ Requirements:
 git clone --recurse-submodules -j8 https://github.com/m49n/l2mapconv-public.git
 cd l2mapconv-public
 
-cmake -S . -B build/preview-core -G Ninja -D CMAKE_BUILD_TYPE=Release -D L2MAPCONV_LOAD_TEXTURES=OFF -D CMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang.exe" -D CMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang++.exe"
-cmake --build build/preview-core --parallel
-
-cmake -S . -B build/preview-textured -G Ninja -D CMAKE_BUILD_TYPE=Release -D L2MAPCONV_LOAD_TEXTURES=ON -D CMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang.exe" -D CMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang++.exe"
-cmake --build build/preview-textured --parallel
-
-cmake -S . -B build/territory-render -G Ninja -D CMAKE_BUILD_TYPE=Release -D L2MAPCONV_LOAD_TEXTURES=OFF -D CMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang.exe" -D CMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang++.exe"
-cmake --build build/territory-render --parallel
+cmake -S . -B build/main -G Ninja -D CMAKE_BUILD_TYPE=Release -D BUILD_TESTING=ON -D BUILD_SHARED_LIBS=OFF -D L2MAPCONV_LOAD_TERRAIN=ON -D L2MAPCONV_LOAD_TEXTURES=OFF -D CMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang.exe" -D CMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang++.exe"
+cmake --build build/main --target publish --parallel
+.\dist\l2mapconv.exe --version
 ```
+
+Use your installed Clang paths. `publish` builds the app and test tools, runs
+CTest, then updates `dist/` only if those steps succeed. Close the app before
+updating its package. Existing geodata and radar outputs are not removed.
+The runtime component packages only the app, required resources/runtime DLLs
+(including the toolchain's Visual C++ redistributable DLLs on Windows),
+README, license and credits, not test programs or build-tree outputs.
+
+For an already configured developer tree (for example `build/territory-render`),
+use its path instead of `build/main`; it publishes to the same `dist/` directory.
+Do not keep launching older executables from historical build directories.
+`publish` requires `BUILD_TESTING=ON`. For a custom destination, build and test
+first, then use `cmake --install build/main --prefix <folder> --component Runtime`.
+The install command alone does **not** rebuild or test the application.
 
 ### macOS/Linux
 
@@ -248,12 +267,12 @@ cmake --build build --parallel
 - `L2MAPCONV_GEODATA_POST_PROCESSING` — enable geodata compression and cell alignment. Disable to see actual cell positions during development.
 - `L2MAPCONV_LOAD_TERRAIN` — disable for faster geodata building during development.
 - `L2MAPCONV_LOAD_TEXTURES` — loads textures for supported static meshes and
-  BSP surfaces. Keep a separate texture-disabled build as the reliable
-  geometry inspection profile.
+  BSP surfaces in the legacy interactive renderer (developer experiment).
+  Leave OFF for the ready package; it does not disable radar textures or water.
 
 ### Tests
 
-Build `l2mapconv_tests`, then run `ctest --test-dir build/preview-core
+Build the default target, then run `ctest --test-dir build/main
 --output-on-failure`. The portable tests cover NSWE landing surfaces, layer
 capacity, height encoding, and export failure cleanup without client assets.
 
@@ -271,7 +290,7 @@ optional pixel deltas. For all three resolutions, water on/off, synthetic
 tiled/color fixtures and L2J regression against a known baseline:
 
 ```powershell
-.\tests\territory\Acceptance.ps1 -App 'D:\repo\build\territory-render\install\l2mapconv.exe' -Client 'D:\clients\sam' -Output 'D:\new-acceptance-run' -BaselineGeo 'D:\baseline\output'
+.\tests\territory\Acceptance.ps1 -App 'D:\repo\dist\l2mapconv.exe' -Client 'D:\clients\sam' -Output 'D:\new-acceptance-run' -BaselineGeo 'D:\baseline\output'
 ```
 
 Use a new output directory; `-SkipGeo` runs only the rendering checks. The

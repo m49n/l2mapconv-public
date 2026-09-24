@@ -2,6 +2,7 @@
 
 #include "Application.h"
 #include "ApplicationContext.h"
+#include "BuildIdentity.h"
 #include "CameraSystem.h"
 #include "GeodataContext.h"
 #include "GeodataSystem.h"
@@ -70,7 +71,7 @@ auto Application::preview(const std::filesystem::path &client_root,
 
   ApplicationContext application_context{};
   WindowContext window_context{};
-  WindowSystem window_system{window_context, application_context, "l2mapconv",
+  WindowSystem window_system{window_context, application_context, build_identity,
                              1440, 1000};
   window_system.start();
 

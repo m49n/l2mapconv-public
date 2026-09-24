@@ -40,4 +40,15 @@ add_subdirectory(application)
 
 if(BUILD_TESTING)
     add_subdirectory(tests)
+
+    # Publishing always rebuilds and tests; `cmake --install` alone does neither.
+    add_custom_target(publish
+        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${CMAKE_BINARY_DIR}"
+            -C $<CONFIG> --output-on-failure
+        COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}"
+            --config $<CONFIG> --prefix "${CMAKE_SOURCE_DIR}/dist" --component Runtime
+        DEPENDS copy-resources l2mapconv_tests window_system_tests territory_tests
+            territory_png_compare
+        USES_TERMINAL
+        VERBATIM)
 endif()

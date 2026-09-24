@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "Application.h"
+#include "BuildIdentity.h"
 #include "ClientFolderPicker.h"
 #include "ClientStartup.h"
 #include "CommandLine.h"
@@ -117,10 +118,16 @@ auto main(int argc, char **argv) -> int {
        "debug, 6 - all)",                                                    //
        cxxopts::value<unsigned int>()->default_value("3"))                   //
                                                                              //
-      ("help", "Print help");
+      ("help", "Print help")                                               //
+      ("version", "Print build identity");
 
   // Parse options
   const auto &input = options.parse(argc, argv);
+
+  if (input.count("version") > 0) {
+    std::cout << build_identity << std::endl;
+    return EXIT_SUCCESS;
+  }
 
   // Help
   if (input.count("help") > 0) {
