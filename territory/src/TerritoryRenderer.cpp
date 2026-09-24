@@ -7,6 +7,7 @@
 #include <limits>
 #include <map>
 #include <set>
+#include <territory/GeometricNormals.h>
 #include <territory/TerritoryRenderer.h>
 #include <territory/TileLayout.h>
 #include <thread>
@@ -220,6 +221,8 @@ struct Framebuffers {
 };
 struct PreparedDraw {
   const Draw *draw{};
+  std::size_t mesh{}, first_index{}, index_count{};
+  bool mirrored{};
   glm::mat4 model{1};
   glm::mat3 normals{1};
   glm::dvec3 min{}, max{};
@@ -361,22 +364,23 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
   neutral.two_sided = true;
   const auto neutral_program = get_program(neutral, false);
   const glm::dvec3 region(scene.bounds.min_x, scene.bounds.min_y, 0);
-  auto prepare = [&](const Draw &d) {
+  auto prepare = [&](const Draw &d, const VisualMesh &mesh, std::size_t gpu_mesh,
+                     bool geometric_normals = false) {
     PreparedDraw p;
     p.draw = &d;
+    p.mesh = gpu_mesh;
+    p.first_index = geometric_normals ? 0 : d.first_index;
+    p.index_count = geometric_normals ? mesh.indices.size() : d.index_count;
+    p.mirrored = glm::determinant(glm::dmat3(d.transform)) < 0;
     auto transform = glm::dmat4(d.transform);
-    auto origin = transform * glm::dvec4(meshes[d.mesh].origin, 1.0);
+    auto origin = transform * glm::dvec4(meshes[gpu_mesh].origin, 1.0);
     transform[3] = origin - glm::dvec4(region, 0);
     p.model = glm::mat4(transform);
-    const auto linear = glm::mat3(d.transform);
-    if (std::abs(glm::determinant(linear)) < 1e-12f)
-      throw std::runtime_error("Degenerate visual transform: " + d.source);
-    p.normals = glm::transpose(glm::inverse(linear));
+    if (!geometric_normals)
+      p.normals = glm::transpose(glm::inverse(glm::mat3(d.transform)));
     p.min = glm::dvec3(std::numeric_limits<double>::max());
     p.max = -p.min;
-    const auto &mesh = scene.meshes[d.mesh];
-    for (std::size_t i = d.first_index; i < d.first_index + d.index_count;
-         ++i) {
+    for (std::size_t i = p.first_index; i < p.first_index + p.index_count; ++i) {
       auto world =
           glm::dvec3(glm::dmat4(d.transform) *
                      glm::dvec4(mesh.vertices[mesh.indices[i]].position, 1));
@@ -394,8 +398,7 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
     if (blend == Blend::Invisible)
       continue;
     // P542 16_24.StaticMeshActor64 has a serialized DrawScale of zero.
-    // Only a fully collapsed linear transform has no visible surface; a
-    // single zero axis may leave visible polygons and must not be discarded.
+    // Point collapses can be skipped without examining individual triangles.
     if (glm::mat3(draw.transform) == glm::mat3(0.f)) {
       info.issues.push_back({IssueKind::Simplified,
                              draw.source,
@@ -404,7 +407,26 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
                              {draw.source}});
       continue;
     }
-    auto p = prepare(draw);
+    const auto determinant = glm::determinant(glm::mat3(draw.transform));
+    PreparedDraw p;
+    if (!std::isfinite(determinant) || std::abs(determinant) < 1e-12f) {
+      auto rebuilt =
+          rebuild_geometric_normals(scene.meshes[draw.mesh], draw, cancel);
+      info.issues.push_back({IssueKind::Simplified, draw.source,
+                            "Singular or near-singular transform: retained " +
+                                std::to_string(rebuilt.mesh.indices.size() / 3) +
+                                " triangles with geometric face normals; skipped " +
+                                std::to_string(rebuilt.skipped_triangles) +
+                                " zero-area triangles",
+                            {draw.source}});
+      if (rebuilt.mesh.indices.empty())
+        continue;
+      const auto index = meshes.size();
+      meshes.emplace_back(rebuilt.mesh);
+      p = prepare(draw, rebuilt.mesh, index, true);
+    } else {
+      p = prepare(draw, scene.meshes[draw.mesh], draw.mesh);
+    }
     (transparent(blend) ? alpha : opaque).push_back(std::move(p));
   }
   std::stable_sort(alpha.begin(), alpha.end(),
@@ -421,7 +443,8 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
                         glm::mat4(1),
                         false,
                         "terrain"};
-    terrain_prepared = prepare(*terrain_draw);
+    terrain_prepared = prepare(*terrain_draw, scene.meshes[*scene.terrain_mesh],
+                               *scene.terrain_mesh);
   }
   const int n = settings.pixels;
   Framebuffers fb(settings.tile_size, settings.tile_size, sample_count);
@@ -485,7 +508,7 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
       glDisable(GL_DEPTH_TEST);
     glDepthFunc(layer ? GL_LEQUAL : GL_LESS);
     glDepthMask(layer ? GL_FALSE : GLboolean(m.depth_write));
-    glFrontFace(glm::determinant(glm::mat3(p.model)) < 0 ? GL_CCW : GL_CW);
+    glFrontFace(p.mirrored ? GL_CCW : GL_CW);
     if (m.two_sided || layer || terrain_base)
       glDisable(GL_CULL_FACE);
     else {
@@ -505,10 +528,10 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
         glBlendFunc(GL_ONE, GL_ONE);
     } else
       glDisable(GL_BLEND);
-    glBindVertexArray(meshes[p.draw->mesh].vao);
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(p.draw->index_count),
+    glBindVertexArray(meshes[p.mesh].vao);
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(p.index_count),
                    GL_UNSIGNED_INT,
-                   reinterpret_cast<const void *>(p.draw->first_index *
+                   reinterpret_cast<const void *>(p.first_index *
                                                   sizeof(std::uint32_t)));
   };
   for (const auto &tile : tiles) {

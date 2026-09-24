@@ -193,7 +193,13 @@ an unfinished PNG is not published. Force-terminated jobs may retain temporary
 files in their own job directory; those are not finished results.
 Fully zero-scale objects (for example `16_24.StaticMeshActor64`) collapse to a
 point and are skipped with a `simplified` diagnostic during rendering instead
-of aborting the job. Partially collapsed transforms retain their error checks.
+of aborting the job. Singular or near-singular transforms rebuild geometric
+face normals for surviving triangles, preserving positions and material
+attributes. Only triangles with zero transformed area are dropped; a
+`simplified` diagnostic records retained/dropped counts. This allows flattened
+surfaces such as `20_11.StaticMeshActor1436` to render without inventing an
+inverse normal transform. Face normals are an explicit shading approximation;
+invalid/non-finite scene data still fails validation.
 1K exports use a 1024-pixel framebuffer tile; larger presets use tiles up to 2048.
 
 Verified on Samurai Crow P542 `22_22`: 4K, 8K and 16K outputs decode at their

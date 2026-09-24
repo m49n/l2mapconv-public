@@ -3,6 +3,8 @@ target_link_libraries(territory_tests PRIVATE territory unreal geodata geometry 
 target_sources(territory_tests PRIVATE RasterTests.cpp)
 target_sources(territory_tests PRIVATE TerrainGeometryTests.cpp)
 target_sources(territory_tests PRIVATE GpuRasterTests.cpp)
+target_sources(territory_tests PRIVATE FlattenedDrawTests.cpp)
+target_sources(territory_tests PRIVATE GeometricNormalTests.cpp)
 target_sources(territory_tests PRIVATE OutputTests.cpp)
 target_sources(territory_tests PRIVATE RunnerTests.cpp)
 target_sources(territory_tests PRIVATE ProcessTests.cpp ${CMAKE_SOURCE_DIR}/application/src/TerritoryProcess.cpp ${CMAKE_SOURCE_DIR}/application/src/TerritoryRenderController.cpp)

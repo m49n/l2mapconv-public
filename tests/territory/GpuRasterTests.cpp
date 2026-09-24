@@ -7,6 +7,7 @@
 #include <territory/VisualSceneLoader.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
+int gpu_flattened_draw_tests(territory::TerritoryRenderer &);
 namespace {
 void png(const std::filesystem::path &file, int size,
          const std::vector<std::uint8_t> &data) {
@@ -100,6 +101,7 @@ int gpu_raster_tests(const std::filesystem::path &output) {
   };
   auto whole = raster(256, true), tiled = raster(128, true),
        dry = raster(128, false);
+  failures += gpu_flattened_draw_tests(renderer);
   {
     auto point = s.draws.front();
     point.source = "zero-scale actor";
@@ -120,13 +122,6 @@ int gpu_raster_tests(const std::filesystem::path &output) {
     failures += expect(
         recovered,
         "zero-scale actor reports skip without changing pixels or aborting");
-    // A flattened object can still contain visible polygons: do not silently
-    // skip every singular transform as if it were a point.
-    s.draws.back().transform = glm::mat4(1.f);
-    s.draws.back().transform[2][2] = 0.f;
-    failures +=
-        expect(throws([&] { raster(128, true); }),
-               "partially collapsed transforms retain diagnostic failure");
     s.draws.pop_back();
   }
   {
