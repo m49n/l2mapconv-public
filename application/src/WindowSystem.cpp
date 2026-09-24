@@ -110,6 +110,10 @@ auto WindowSystem::create_window(const std::string &title, int width,
   ASSERT(window != nullptr, "App", "Can't create window");
 
   glfwMakeContextCurrent(window);
+  glfwSwapInterval(1);
+  if (glfwRawMouseMotionSupported()) {
+    glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+  }
 
   m_window_context.window_handle = window;
   return window;

@@ -53,6 +53,24 @@ if(L2MAPCONV_LOAD_TERRAIN)
 endif()
 
 add_test(NAME l2mapconv_tests COMMAND l2mapconv_tests)
+
+add_executable(window_system_tests WindowSystemTests.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/WindowSystem.cpp)
+target_precompile_headers(window_system_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/application/src/pch.h)
+set_target_properties(window_system_tests PROPERTIES ${TARGET_PROPERTIES})
+target_compile_options(window_system_tests PRIVATE ${TARGET_COMPILE_OPTIONS})
+# Use platform headers without linking GLFW or inheriting GLFW_DLL: the test
+# supplies that external boundary itself, including in shared-library builds.
+target_include_directories(window_system_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/application/src
+    ${CMAKE_SOURCE_DIR}/libs/glfw/include
+    ${CMAKE_SOURCE_DIR}/libs/imgui
+    ${CMAKE_SOURCE_DIR}/libs/imgui/imgui)
+target_link_libraries(window_system_tests PRIVATE
+    utils geometry unreal rendering geodata libglew_static glm cxxopts)
+add_test(NAME window_system_tests COMMAND window_system_tests)
+
 add_subdirectory(territory)
 
 set(L2MAPCONV_TEST_CLIENT_ROOT "" CACHE PATH "Optional Samurai Crow P542 client for generation integration tests")
