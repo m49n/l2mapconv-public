@@ -9,6 +9,7 @@ int reference_tests();
 int texture_tests();
 int material_tests();
 int geometry_tests();
+int terrain_geometry_tests();
 int raster_tests();
 int output_tests();
 int runner_tests();
@@ -105,8 +106,10 @@ int main(int argc, char **argv) {
       failures += texture_tests();
     if (suite.empty() || suite == "material")
       failures += material_tests();
-    if (suite.empty() || suite == "geometry")
+    if (suite.empty() || suite == "geometry") {
       failures += geometry_tests();
+      failures += terrain_geometry_tests();
+    }
     if (suite.empty() || suite == "raster")
       failures += raster_tests();
     if (suite.empty() || suite == "output")

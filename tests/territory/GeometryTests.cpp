@@ -101,14 +101,13 @@ int geometry_tests() {
   auto tex = std::make_shared<unreal::Texture>(*fixture.archive);
   tex->u_size = 256;
   tex->v_size = 256;
-  // Mapping tests avoid parser references by testing an explicit world origin
-  // separately below.
+  // Mapping tests exercise the supported fixed-size terrain transform without
+  // requiring a parser reference to the heightmap.
   unreal::TerrainLayer mapping_layer{};
   mapping_layer.u_scale = 1;
   mapping_layer.v_scale = 1;
   mapping_layer.layer_scale = {32, 32, 76};
-  // Terrain mapping uses map coordinates for the verified P542 regular-grid
-  // subset.
+  // Map metadata identifies the square; the actual actor position defines UVs.
   terrain.map_x = 22;
   terrain.map_y = 22;
   auto mapping = terrain_mapping(terrain, mapping_layer);
@@ -122,6 +121,19 @@ int geometry_tests() {
   expect(mapping.verified && std::abs(uv.x - 2.f) < .001f &&
              std::abs(uv.y - 4.f) < .001f,
          "P542 base layer uses its own serialized Scale");
+  // Translation must move the color mapping with the geometry, independently
+  // of the output square. These are not a table of production map exceptions.
+  for (const auto offset : {glm::vec2(3, 3), glm::vec2(16, 16),
+                            glm::vec2(-37, 11), glm::vec2(257, -129)}) {
+    terrain.location = {81920 + offset.x, 147456 + offset.y, 160.65126f};
+    mapping = terrain_mapping(terrain, mapping_layer);
+    uv = mapping.world_to_uv *
+         glm::vec4(65664 + offset.x, 131328 + offset.y, 0, 1);
+    expect(mapping.verified && std::abs(uv.x - 2.f) < .001f &&
+               std::abs(uv.y - 4.f) < .001f,
+           "translated terrain keeps its own texture coordinates");
+  }
+  terrain.location = {81920, 147456, 160.65126f};
   mapping_layer.texture_map_axis = unreal::TEXMAPAXIS_XZ;
   expect(!terrain_mapping(terrain, mapping_layer).verified,
          "unevidenced terrain projection explicitly unsupported");

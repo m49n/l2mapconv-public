@@ -1,6 +1,7 @@
 add_library(territory src/Job.cpp src/PathIO.cpp src/TextureData.cpp src/MaterialGraph.cpp src/MaterialResolver.cpp src/VisualSceneLoader.cpp)
 target_include_directories(territory PUBLIC include)
 target_sources(territory PRIVATE src/TileLayout.cpp)
+target_sources(territory PRIVATE src/TerrainGeometry.cpp)
 target_sources(territory PRIVATE src/GLResources.cpp src/TerritoryRenderer.cpp)
 target_sources(territory PRIVATE src/PngOutput.cpp src/FileIdentity.cpp)
 target_sources(territory PRIVATE src/JobRunner.cpp)

@@ -9,6 +9,7 @@
 #include <sstream>
 #include <territory/MaterialResolver.h>
 #include <territory/TerrainMapping.h>
+#include <territory/TerrainGeometry.h>
 #include <territory/VisualSceneLoader.h>
 #include <territory/WaterSurface.h>
 #include <unreal/ArchiveLoader.h>
@@ -98,8 +99,8 @@ TerrainMapping terrain_mapping(const unreal::TerrainInfoActor &t,
   result.evidence =
       "Unsupported terrain mapping variant: only regular P542 XY, zero "
       "pan/rotation with serialized layer Scale is evidenced";
-  if (t.terrain_scale.x != 128.f || t.terrain_scale.y != 128.f || t.map_x < 0 ||
-      t.map_x > 99 || t.map_y < 0 || t.map_y > 99 ||
+  if (t.terrain_scale.x != 128.f || t.terrain_scale.y != 128.f ||
+      !finite(vec(t.location)) ||
       l.texture_map_axis != unreal::TEXMAPAXIS_XY || l.u_pan != 0 ||
       l.v_pan != 0 || l.texture_rotation != 0 || l.layer_rotation.pitch ||
       l.layer_rotation.yaw || l.layer_rotation.roll ||
@@ -107,10 +108,10 @@ TerrainMapping terrain_mapping(const unreal::TerrainInfoActor &t,
       l.u_scale <= 0 || l.v_scale <= 0 || !finite(vec(l.layer_scale)) ||
       l.layer_scale.x <= 0 || l.layer_scale.y <= 0)
     return result;
-  const double x0 = (t.map_x - 20) * 32768., y0 = (t.map_y - 18) * 32768.;
-  if (std::abs(t.location.x - (x0 + 16384)) > .01 ||
-      std::abs(t.location.y - (y0 + 16384)) > .01)
-    return result;
+  // Geometry validation establishes a 32768-unit terrain. UVs are local to
+  // its actual origin, not the independent filename-based radar crop.
+  const double x0 = double(t.location.x) - 16384.,
+               y0 = double(t.location.y) - 16384.;
   const double su = 2. * l.layer_scale.x / (128. * 128. * l.u_scale),
                sv = 2. * l.layer_scale.y / (128. * 128. * l.v_scale);
   result.world_to_uv = glm::mat4(1.f);
@@ -266,7 +267,7 @@ VisualScene VisualSceneLoader::load(const std::string &name,
     scene.library.materials.push_back(std::move(copy));
     return scene.library.materials.size() - 1;
   };
-  Json terrain_info = Json::array(), classes = Json::object(),
+  Json terrain_info = Json::array(), terrain_geometry = nullptr, classes = Json::object(),
        water = Json::array();
   std::size_t static_actors = 0, bsp_faces = 0, water_volumes = 0,
               water_surfaces = 0;
@@ -323,21 +324,6 @@ VisualScene VisualSceneLoader::load(const std::string &name,
   if (terrain) {
     check_cancel(cancel);
     const auto src = identity(terrain->asset_reference());
-    if (terrain->broken_scale() || !terrain->terrain_map.has_reference())
-      throw std::runtime_error("Invalid visual terrain: " + src);
-    auto height = terrain->terrain_map.as<unreal::Texture>();
-    if (!height || height->format != unreal::TEXF_G16 || height->mips.empty())
-      throw std::runtime_error("Missing G16 visual heightmap");
-    const int w = height->u_size, h = height->v_size;
-    if (w < 2 || h < 2 || w > 4096 || h > 4096 ||
-        height->mips.front().data.size() != static_cast<std::size_t>(w) * h * 2)
-      throw std::runtime_error("Invalid terrain height dimensions");
-    const auto origin = vec(terrain->position()), scale = vec(terrain->scale());
-    if (std::abs(origin.x - scene.bounds.min_x) > .01 ||
-        std::abs(origin.y - scene.bounds.min_y) > .01 ||
-        std::abs(w * scale.x - 32768) > .01 ||
-        std::abs(h * scale.y - 32768) > .01)
-      throw std::runtime_error("Terrain bounds do not match requested square");
     std::array<std::shared_ptr<unreal::TerrainInfoActor>, 4> edges{
         terrain, nullptr, nullptr, nullptr};
     for (int n = 1; n < 4; ++n) {
@@ -348,71 +334,33 @@ VisualScene VisualSceneLoader::load(const std::string &name,
       } catch (const std::exception &e) {
         issue(IssueKind::Corrupt, neighbour, e.what());
       }
+      if (edges[n] && (edges[n]->broken_scale() ||
+                       !edges[n]->terrain_map.has_reference()))
+        edges[n].reset();
       if (!edges[n])
         issue(IssueKind::Simplified, neighbour,
-              "Terrain border neighbour unavailable; outer sample clamped to "
-              "last owned height");
+              "Terrain border neighbour unavailable; use other heightmap "
+              "coverage where available, otherwise clamp owner height");
     }
-    VisualMesh grid;
-    grid.vertices.resize(static_cast<std::size_t>(w + 1) * (h + 1));
-    auto sample = [&](int x, int y) {
-      auto t = edges[(x == w ? 1 : 0) + (y == h ? 2 : 0)];
-      int tx = x == w ? 0 : x, ty = y == h ? 0 : y;
-      if (!t || t->broken_scale() || !t->terrain_map.has_reference()) {
-        t = terrain;
-        tx = std::min(x, w - 1);
-        ty = std::min(y, h - 1);
-      }
-      auto tex = t->terrain_map.as<unreal::Texture>();
-      if (!tex || tex->format != unreal::TEXF_G16 || tex->mips.empty() ||
-          tex->u_size != w || tex->v_size != h ||
-          tex->mips[0].data.size() != static_cast<std::size_t>(w) * h * 2)
-        throw std::runtime_error("Invalid adjacent terrain heightmap");
-      const auto i = static_cast<std::size_t>(ty * w + tx) * 2;
-      const auto &bytes = tex->mips[0].data;
-      return (bytes[i] | (static_cast<unsigned>(bytes[i + 1]) << 8)) *
-                 t->scale().z +
-             t->position().z;
-    };
-    for (int y = 0; y <= h; ++y) {
-      check_cancel(cancel);
-      for (int x = 0; x <= w; ++x) {
-        auto &v = grid.vertices[y * (w + 1) + x];
-        v.position = {origin.x + x * scale.x, origin.y + y * scale.y,
-                      sample(x, y)};
-        v.uv[0] = {float(x) / w, float(y) / h};
-      }
-    }
-    if (terrain->quad_visibility_bitmap.size() <
-            static_cast<std::size_t>(w) * h ||
-        terrain->edge_turn_bitmap.size() < static_cast<std::size_t>(w) * h)
-      throw std::runtime_error("Incomplete terrain visibility/diagonal bitmap");
-    for (int y = 0; y < h; ++y)
-      for (int x = 0; x < w; ++x) {
-        auto bit = y * w + x;
-        if (!terrain->quad_visibility_bitmap[bit])
-          continue;
-        auto a = std::uint32_t(y * (w + 1) + x), b = a + 1, c = a + w + 1,
-             d = c + 1;
-        if (terrain->edge_turn_bitmap[bit])
-          grid.indices.insert(grid.indices.end(), {a, b, d, a, d, c});
-        else
-          grid.indices.insert(grid.indices.end(), {a, b, c, b, d, c});
-      }
-    for (std::size_t i = 0; i < grid.indices.size(); i += 3) {
-      auto a = grid.indices[i], b = grid.indices[i + 1],
-           c = grid.indices[i + 2];
-      auto n =
-          glm::cross(grid.vertices[b].position - grid.vertices[a].position,
-                     grid.vertices[c].position - grid.vertices[a].position);
-      for (auto j : {a, b, c})
-        grid.vertices[j].normal += n;
-    }
-    for (auto &v : grid.vertices)
-      v.normal = glm::length(v.normal) > 0 ? glm::normalize(v.normal)
-                                           : glm::vec3(0, 0, 1);
+    auto geometry = build_terrain_mesh(edges, scene.bounds, cancel);
+    if (geometry.clamped_border_samples)
+      issue(IssueKind::Simplified, src,
+            "Terrain border has " +
+                std::to_string(geometry.clamped_border_samples) +
+                " samples outside available heightmap coverage; preferred "
+                "neighbour/owner height clamped, geometry not moved");
+    const auto origin = vec(terrain->position());
+    terrain_geometry = {
+        {"source", src},
+        {"origin", {origin.x, origin.y, origin.z}},
+        {"offset_from_square", {origin.x - scene.bounds.min_x,
+                                 origin.y - scene.bounds.min_y}},
+        {"crop", "filename square; terrain is not snapped"},
+        {"border", "world-coordinate triangle sampling; uncovered samples "
+                   "clamp preferred neighbour or owner height"},
+        {"clamped_border_samples", geometry.clamped_border_samples}};
     scene.terrain_mesh = scene.meshes.size();
-    scene.meshes.push_back(std::move(grid));
+    scene.meshes.push_back(std::move(geometry.mesh));
     for (std::size_t slot = 0; slot < terrain->layers.size(); ++slot) {
       check_cancel(cancel);
       const auto &l = terrain->layers[slot];
@@ -679,6 +627,7 @@ VisualScene VisualSceneLoader::load(const std::string &name,
                                {"materials", scene.library.materials.size()},
                                {"textures", scene.library.textures.size()},
                                {"terrain_layers", terrain_info},
+                               {"terrain_geometry", terrain_geometry},
                                {"water", water},
                                {"water_surfaces", water_surfaces},
                                {"actor_inventory", classes},
