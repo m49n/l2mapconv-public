@@ -127,7 +127,7 @@ interactive viewer was built with `L2MAPCONV_LOAD_TEXTURES=OFF`.
 
 In the viewer, mark squares in **Maps**, then use **Territory Render**:
 
-- Choose **4K / 8K / 16K** (4096 / 8192 / 16384 pixels, default 8K).
+- Choose **1K / 2K / 4K / 8K / 16K** (1024 / 2048 / 4096 / 8192 / 16384 pixels, default 8K).
 - Choose an output folder outside the client; toggle supported water surfaces.
 - **Render selected** exports the manually checked maps, one at a time, with
   full visual geometry regardless of preview residency or visibility settings.
@@ -140,6 +140,7 @@ The same backend is available to scripts and agents:
 
 ```powershell
 .\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 8192 -- 22_22
+.\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 1024 -- 16_24 16_25
 .\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 16384 --no-water -- 22_22 24_18
 .\l2mapconv.exe --inspect-territory --client-root 'D:\clients\sam' --output 'D:\radar-audit' -- 22_22
 ```
@@ -180,6 +181,10 @@ North is at the top (-Y). Tile rendering bounds memory instead of creating a
 single 16K GPU framebuffer. Finished files survive later-map failure/cancel;
 an unfinished PNG is not published. Force-terminated jobs may retain temporary
 files in their own job directory; those are not finished results.
+Fully zero-scale objects (for example `16_24.StaticMeshActor64`) collapse to a
+point and are skipped with a `simplified` diagnostic during rendering instead
+of aborting the job. Partially collapsed transforms retain their error checks.
+1K exports use a 1024-pixel framebuffer tile; larger presets use tiles up to 2048.
 
 Verified on Samurai Crow P542 `22_22`: 4K, 8K and 16K outputs decode at their
 exact native sizes. The material loader supports highest mips, P8/RGBA8/L8 and

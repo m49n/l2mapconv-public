@@ -236,7 +236,8 @@ RunResult run_job(const Job &input, const Progress &progress,
                       job.settings.resolution);
         result.status.phase = Phase::Rendering;
         publish();
-        RasterSettings settings{job.settings.resolution, 2048, 4,
+        RasterSettings settings{job.settings.resolution,
+                                std::min(2048, job.settings.resolution), 4,
                                 job.settings.water};
         auto info = services.render(
             scene, settings, cancel,

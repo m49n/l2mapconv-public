@@ -126,7 +126,7 @@ auto main(int argc, char **argv) -> int {
   if (input.count("help") > 0) {
     std::cout << options.help() << std::endl;
     std::cout << "Territory tools (stdout: one JSON result; exit 0/2/3/130):\n"
-                 "  --render-territory --client-root <sam> --output <dir> [--resolution 4096|8192|16384] [--no-water] -- dd_dd [...]\n"
+                 "  --render-territory --client-root <sam> --output <dir> [--resolution 1024|2048|4096|8192|16384] [--no-water] -- dd_dd [...]\n"
                  "  --inspect-territory --client-root <sam> --output <dir> -- dd_dd [...]\n";
     return EXIT_SUCCESS;
   }

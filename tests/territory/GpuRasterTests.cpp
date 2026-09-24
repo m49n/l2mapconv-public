@@ -79,6 +79,7 @@ int gpu_raster_tests(const std::filesystem::path &output) {
   auto s = fixture();
   TerritoryRenderer renderer;
   int failures = 0;
+  RasterInfo last_info;
   auto raster = [&](int tiles, bool water) {
     std::vector<std::uint8_t> pixels(256 * 256 * 3);
     int next = 0;
@@ -94,10 +95,40 @@ int gpu_raster_tests(const std::filesystem::path &output) {
     if (next != 256)
       throw std::runtime_error("Missing rows");
     std::cout << info.gpu << " samples=" << info.samples << '\n';
+    last_info = info;
     return pixels;
   };
   auto whole = raster(256, true), tiled = raster(128, true),
        dry = raster(128, false);
+  {
+    auto point = s.draws.front();
+    point.source = "zero-scale actor";
+    for (int axis = 0; axis < 3; ++axis)
+      point.transform[axis] = glm::vec4(0.f);
+    point.transform[3] = {65550, 131080, 5, 1};
+    s.draws.push_back(point);
+    bool recovered = false;
+    try {
+      recovered = raster(128, true) == whole && last_info.issues.size() == 1 &&
+                  last_info.issues[0].kind == IssueKind::Simplified &&
+                  last_info.issues[0].source == "zero-scale actor" &&
+                  last_info.issues[0].surfaces ==
+                      std::vector<std::string>{"zero-scale actor"};
+    } catch (const std::exception &e) {
+      std::cout << "Zero-scale reproduction: " << e.what() << '\n';
+    }
+    failures += expect(
+        recovered,
+        "zero-scale actor reports skip without changing pixels or aborting");
+    // A flattened object can still contain visible polygons: do not silently
+    // skip every singular transform as if it were a point.
+    s.draws.back().transform = glm::mat4(1.f);
+    s.draws.back().transform[2][2] = 0.f;
+    failures +=
+        expect(throws([&] { raster(128, true); }),
+               "partially collapsed transforms retain diagnostic failure");
+    s.draws.pop_back();
+  }
   {
     RenderMaterial unused;
     unused.source = "retained original before UV neutralization";

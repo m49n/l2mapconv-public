@@ -14,7 +14,7 @@ $null = New-Item -ItemType Directory -Path $outputPath
 $compare = Join-Path (Split-Path -Parent $appPath) 'territory_png_compare.exe'
 $testApp = Join-Path (Split-Path -Parent $appPath) 'territory_tests.exe'
 $results = @{}
-foreach ($resolution in 4096,8192,16384) {
+foreach ($resolution in 1024,2048,4096,8192,16384) {
     $jsonText = & $appPath --render-territory --client-root $clientPath --output $outputPath --resolution $resolution -- 22_22 2> (Join-Path $outputPath "render-$resolution.log")
     if ($LASTEXITCODE -ne 0) { throw "Render failed: $resolution" }
     $result = ($jsonText -join "`n") | ConvertFrom-Json

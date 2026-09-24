@@ -98,6 +98,28 @@ int runner_tests() {
           png_has_dimensions(render.directory / "23_22_4096.png", 4096, 4096),
       "two maps release their scenes before next load");
   const auto ordinary_render = services.render;
+  for (int resolution : {1024, 2048}) {
+    int actual_pixels = 0, actual_tile_size = 0;
+    services.render = [&](const auto &scene, const auto &settings,
+                          const auto &cancel, const auto &progress,
+                          const auto &rows) {
+      actual_pixels = settings.pixels;
+      actual_tile_size = settings.tile_size;
+      return ordinary_render(scene, settings, cancel, progress, rows);
+    };
+    auto preview = job("low-resolution", Mode::Render);
+    preview.maps = {"22_22"};
+    preview.settings.resolution = resolution;
+    auto preview_result = run_job(preview, {}, {}, services);
+    failures += expect(
+        preview_result.exit_code == 0 && actual_pixels == resolution &&
+            actual_tile_size == resolution &&
+            png_has_dimensions(
+                preview.directory /
+                    ("22_22_" + std::to_string(resolution) + ".png"),
+                resolution, resolution),
+        "low-resolution jobs use matching framebuffer and PNG dimensions");
+  }
   services.render = [&](const auto &scene, const auto &settings,
                         const auto &cancel, const auto &progress,
                         const auto &rows) {

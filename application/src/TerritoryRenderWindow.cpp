@@ -37,13 +37,21 @@ void draw_territory_render_window(TerritoryRenderViewState &view,
     ImGui::EndChild();
   }
   ImGui::BeginDisabled(busy);
-  int resolution = view.settings.resolution == 4096   ? 0
-                   : view.settings.resolution == 8192 ? 1
-                                                      : 2;
+  const auto resolution_label = [](int pixels) {
+    return std::to_string(pixels / 1024) + "K (" + std::to_string(pixels) + ")";
+  };
   ImGui::SetNextItemWidth(120);
-  if (ImGui::Combo("Resolution", &resolution,
-                   "4K (4096)\0 8K (8192)\0 16K (16384)\0"))
-    view.settings.resolution = 4096 << resolution;
+  if (ImGui::BeginCombo("Resolution",
+                        resolution_label(view.settings.resolution).c_str())) {
+    for (int pixels : territory::render_resolutions) {
+      const bool selected = pixels == view.settings.resolution;
+      if (ImGui::Selectable(resolution_label(pixels).c_str(), selected))
+        view.settings.resolution = pixels;
+      if (selected)
+        ImGui::SetItemDefaultFocus();
+    }
+    ImGui::EndCombo();
+  }
   ImGui::Checkbox("Water (supported surfaces)", &view.settings.water);
   ImGui::TextWrapped("Output: %s", territory::path_utf8(view.output).c_str());
   if (ImGui::Button("Browse output...")) {

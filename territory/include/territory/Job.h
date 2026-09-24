@@ -1,5 +1,6 @@
 #pragma once
 #include "Json.h"
+#include <array>
 #include <exception>
 #include <filesystem>
 #include <functional>
@@ -8,6 +9,8 @@
 #include <vector>
 
 namespace territory {
+inline constexpr std::array<int, 5> render_resolutions{1024, 2048, 4096, 8192,
+                                                       16384};
 enum class Mode { Inspect, Render };
 enum class Phase {
   Idle,

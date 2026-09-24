@@ -24,7 +24,7 @@ int cli_tests() {
   failures += expect(c && c->settings.resolution == 8192 && c->settings.water &&
                          c->maps == std::vector<std::string>{"22_22", "24_18"},
                      "render defaults and unique sorted maps");
-  for (auto resolution : {"4096", "8192", "16384"}) {
+  for (auto resolution : {"1024", "2048", "4096", "8192", "16384"}) {
     auto a = base;
     a.insert(a.end(),
              {"--resolution", resolution, "--no-water", "--", "22_22"});

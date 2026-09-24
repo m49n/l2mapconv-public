@@ -48,26 +48,29 @@ int ui_tests() {
   session.set_switch_blocked(false);
   failures +=
       expect(session.request_switch(root), "switch restored after completion");
-  auto cli = parse_territory_command(
-      {"app", "--render-territory", "--client-root", path_utf8(root),
-       "--output", path_utf8(temp.path() / "out"), "--resolution", "4096",
-       "--no-water", "--", "22_22"});
-  if (cli) {
-    TerritoryRenderController controller(temp.path() / "app.exe",
-                                         std::make_unique<UiProcess>());
-    failures += expect(controller.start(root, selected_render_maps(selection),
-                                        {4096, false}, temp.path() / "out"),
-                       "UI starts matching job");
-    if (controller.active()) {
-      const auto job =
-          job_from_json(read_json(controller.job_directory() / "request.json"),
-                        controller.job_directory());
+  for (int resolution : {1024, 2048, 4096, 8192, 16384}) {
+    auto cli = parse_territory_command(
+        {"app", "--render-territory", "--client-root", path_utf8(root),
+         "--output", path_utf8(temp.path() / "out"), "--resolution",
+         std::to_string(resolution), "--no-water", "--", "22_22"});
+    if (cli) {
+      TerritoryRenderController controller(temp.path() / "app.exe",
+                                           std::make_unique<UiProcess>());
       failures +=
-          expect(job.client == cli->client && job.maps == cli->maps &&
-                     job.settings.resolution == cli->settings.resolution &&
-                     job.settings.water == cli->settings.water &&
-                     job.mode == cli->mode,
-                 "UI and CLI job settings agree");
+          expect(controller.start(root, selected_render_maps(selection),
+                                  {resolution, false}, temp.path() / "out"),
+                 "UI starts matching job");
+      if (controller.active()) {
+        const auto job = job_from_json(
+            read_json(controller.job_directory() / "request.json"),
+            controller.job_directory());
+        failures +=
+            expect(job.client == cli->client && job.maps == cli->maps &&
+                       job.settings.resolution == cli->settings.resolution &&
+                       job.settings.water == cli->settings.water &&
+                       job.mode == cli->mode,
+                   "UI and CLI job settings agree");
+      }
     }
   }
   TerritoryRenderController inspect(temp.path() / "app.exe",

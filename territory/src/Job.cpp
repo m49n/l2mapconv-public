@@ -78,8 +78,10 @@ bool output_leaf(std::string_view s) {
 }
 } // namespace
 void validate_settings(const Settings &s) {
-  if (s.resolution != 4096 && s.resolution != 8192 && s.resolution != 16384)
-    throw std::invalid_argument("resolution must be 4096, 8192 or 16384");
+  if (std::find(render_resolutions.begin(), render_resolutions.end(),
+                s.resolution) == render_resolutions.end())
+    throw std::invalid_argument(
+        "resolution must be 1024, 2048, 4096, 8192 or 16384");
 }
 void validate_job(const Job &j) {
   if (!identifier(j.id))

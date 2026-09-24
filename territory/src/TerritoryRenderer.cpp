@@ -393,6 +393,17 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
     auto blend = scene.library.materials[draw.material].blend;
     if (blend == Blend::Invisible)
       continue;
+    // P542 16_24.StaticMeshActor64 has a serialized DrawScale of zero.
+    // Only a fully collapsed linear transform has no visible surface; a
+    // single zero axis may leave visible polygons and must not be discarded.
+    if (glm::mat3(draw.transform) == glm::mat3(0.f)) {
+      info.issues.push_back({IssueKind::Simplified,
+                             draw.source,
+                             "Zero-scale object collapsed to a point; no "
+                             "visible surface to render",
+                             {draw.source}});
+      continue;
+    }
     auto p = prepare(draw);
     (transparent(blend) ? alpha : opaque).push_back(std::move(p));
   }

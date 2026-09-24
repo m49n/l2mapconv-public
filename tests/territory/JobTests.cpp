@@ -58,14 +58,27 @@ int job_tests() {
   auto temp = fixture.path();
   auto client = temp / "client";
   std::filesystem::create_directories(client / "Maps");
-  for (int n : {4096, 8192, 16384})
-    validate_settings({n, true});
+  for (int n : {1024, 2048, 4096, 8192, 16384})
+    failures += expect(!throws([&] { validate_settings({n, true}); }),
+                       "accept render resolution preset");
   failures += expect(throws([] { validate_settings({1234, true}); }),
                      "reject unsupported resolution");
   failures += expect(throws([] { validate_settings({4095, true}); }),
                      "reject resize-like resolution");
   Job j{"job-a", temp / "run", client, {"22_22"}, Mode::Render, {8192, true}};
   validate_job(j);
+  for (int n : {1024, 2048}) {
+    auto preview = j;
+    preview.settings.resolution = n;
+    bool roundtrip = false;
+    try {
+      roundtrip = job_from_json(to_json(preview), preview.directory)
+                      .settings.resolution == n;
+    } catch (const std::exception &) {
+    }
+    failures +=
+        expect(roundtrip, "low-resolution request survives JSON roundtrip");
+  }
   for (const auto &field : {"id", "maps", "client"}) {
     Job invalid = j;
     if (field == std::string_view("id"))
