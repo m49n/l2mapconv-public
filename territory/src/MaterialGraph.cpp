@@ -5,6 +5,21 @@
 #include <stdexcept>
 #include <territory/MaterialGraph.h>
 namespace territory {
+std::vector<int> neutralize_missing_uv_samples(
+    RenderMaterial &material, const std::array<bool, 4> &available_channels) {
+  std::vector<int> missing;
+  for (auto &node : material.nodes)
+    if (node.op == Op::Sample &&
+        (node.uv_channel < 0 || node.uv_channel >= 4 ||
+         !available_channels[node.uv_channel])) {
+      missing.push_back(node.uv_channel);
+      node = Node{};
+      node.value = {.5f, .5f, .5f, 1.f};
+    }
+  if (!missing.empty())
+    material.shadow_coverage_reliable = false;
+  return missing;
+}
 glm::vec4 evaluate_node(Op op, glm::vec4 a, glm::vec4 b, float m) {
   switch (op) {
   case Op::Multiply:

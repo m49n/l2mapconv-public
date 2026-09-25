@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <fstream>
+#include <limits>
 #include <territory/Job.h>
 #include <territory/PathIO.h>
 #include <thread>
@@ -67,6 +68,55 @@ int job_tests() {
                      "reject resize-like resolution");
   Job j{"job-a", temp / "run", client, {"22_22"}, Mode::Render, {8192, true}};
   validate_job(j);
+  {
+    auto old_request = to_json(j);
+    for (auto key : {"textures", "shadows", "sun_azimuth_deg",
+                     "sun_elevation_deg"})
+      old_request.erase(key);
+    auto old_job = job_from_json(old_request, j.directory);
+    auto defaults = to_json(old_job);
+    failures += expect(defaults.value("textures", false) &&
+                           !defaults.value("shadows", true) &&
+                           defaults.value("sun_azimuth_deg", 0.0) == 315.0 &&
+                           defaults.value("sun_elevation_deg", 0.0) == 40.0,
+                       "old request retains visual defaults");
+    Settings custom{4096, false, false, true, 120.0, 55.0};
+    auto modified = j;
+    modified.settings = custom;
+    auto saved_settings = to_json(modified);
+    auto restored = to_json(job_from_json(saved_settings, j.directory));
+    failures += expect(restored["water"] == false &&
+                           restored["textures"] == false &&
+                           restored["shadows"] == true &&
+                           restored["sun_azimuth_deg"] == 120.0 &&
+                           restored["sun_elevation_deg"] == 55.0,
+                       "render appearance settings roundtrip exactly");
+    for (auto key : {"textures", "shadows"}) {
+      auto invalid = saved_settings;
+      invalid[key] = 1;
+      failures += expect(throws([&] { job_from_json(invalid, j.directory); }),
+                         "reject non-boolean render switch");
+    }
+    for (auto [key, value] :
+         {std::pair{"sun_azimuth_deg", Json(-1)},
+          {"sun_azimuth_deg", Json(361)},
+          {"sun_azimuth_deg", Json("east")},
+          {"sun_elevation_deg", Json(14)},
+          {"sun_elevation_deg", Json(81)},
+          {"sun_elevation_deg", Json("high")}}) {
+      auto invalid = saved_settings;
+      invalid[key] = value;
+      failures += expect(throws([&] { job_from_json(invalid, j.directory); }),
+                         "reject invalid sun angle in request");
+    }
+    custom.sun_azimuth_deg = std::numeric_limits<double>::infinity();
+    failures += expect(throws([&] { validate_settings(custom); }),
+                       "reject infinite sun azimuth");
+    custom.sun_azimuth_deg = 120.0;
+    custom.sun_elevation_deg = std::numeric_limits<double>::quiet_NaN();
+    failures += expect(throws([&] { validate_settings(custom); }),
+                       "reject NaN sun elevation");
+  }
   for (int n : {1024, 2048}) {
     auto preview = j;
     preview.settings.resolution = n;

@@ -12,12 +12,14 @@ int geometry_tests();
 int terrain_geometry_tests();
 int geometric_normal_tests();
 int raster_tests();
+int shadow_projection_tests();
 int output_tests();
 int runner_tests();
 int process_tests();
 int cli_tests();
 int ui_tests();
 int gpu_raster_tests(const std::filesystem::path &);
+int gpu_shadow_smoke_tests();
 int gpu_map_test(const std::filesystem::path &, const std::string &,
                  const std::filesystem::path &);
 int scene_audit(const std::filesystem::path &, const std::string &,
@@ -67,6 +69,14 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
+  if (argc == 2 && std::string_view(argv[1]) == "--gpu-shadow-smoke") {
+    try {
+      return gpu_shadow_smoke_tests();
+    } catch (const std::exception &e) {
+      std::cerr << "GPU shadow smoke failed: " << e.what() << '\n';
+      return 1;
+    }
+  }
   if (argc == 5 && (std::string_view(argv[1]) == "--audit-client" ||
                     std::string_view(argv[1]) == "--inventory-client")) {
     try {
@@ -112,8 +122,10 @@ int main(int argc, char **argv) {
       failures += terrain_geometry_tests();
       failures += geometric_normal_tests();
     }
-    if (suite.empty() || suite == "raster")
+    if (suite.empty() || suite == "raster") {
       failures += raster_tests();
+      failures += shadow_projection_tests();
+    }
     if (suite.empty() || suite == "output")
       failures += output_tests();
     if (suite.empty() || suite == "runner")

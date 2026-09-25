@@ -136,6 +136,52 @@ int runner_tests() {
           read_json(gpu_warning.directory / "22_22-report.json")["issues"]
                   .size() == 1,
       "GPU fallback warnings reach terminal status and each map report");
+  {
+    RasterSettings forwarded;
+    services.render = [&](const auto &scene, const RasterSettings &settings,
+                          const auto &cancel, const auto &progress,
+                          const auto &rows) {
+      forwarded = settings;
+      auto info = ordinary_render(scene, settings, cancel, progress, rows);
+      info.shadow_map_size = 4096;
+      return info;
+    };
+    auto shadow_job = job("shadows", Mode::Render);
+    shadow_job.maps = {"22_22"};
+    shadow_job.settings = {4096, false, false, true, 120.0, 55.0};
+    const auto shadow_result = run_job(shadow_job, {}, {}, services);
+    const auto full = read_json(shadow_result.report);
+    const auto per_map = read_json(shadow_job.directory / "22_22-report.json");
+    failures += expect(shadow_result.exit_code == 0 && !forwarded.water &&
+                           !forwarded.textures && forwarded.shadows &&
+                           forwarded.sun_azimuth_deg == 120.0 &&
+                           forwarded.sun_elevation_deg == 55.0,
+                       "runner forwards all appearance options to renderer");
+    failures += expect(
+        full["maps"][0]["textures_enabled"] == false &&
+            full["maps"][0]["shadows_enabled"] == true &&
+            full["maps"][0]["sun_azimuth_deg"] == 120.0 &&
+            full["maps"][0]["sun_elevation_deg"] == 55.0 &&
+            full["maps"][0]["shadow_map_size"] == 4096 &&
+            per_map["maps"][0]["shadow_map_size"] == 4096,
+        "final and per-map reports record requested and actual shadow settings");
+    services.render = [](const auto &, const auto &, const auto &,
+                         const TileProgress &progress, const auto &)
+        -> RasterInfo {
+      progress(1, 5);
+      throw std::runtime_error("depth framebuffer unavailable");
+    };
+    auto failure_job = job("shadow-error", Mode::Render);
+    failure_job.maps = {"22_22"};
+    failure_job.settings.shadows = true;
+    const auto failed = run_job(failure_job, {}, {}, services);
+    failures += expect(
+        failed.status.phase == Phase::Failed &&
+            !std::filesystem::exists(failure_job.directory / "22_22_4096.png") &&
+            std::find(failed.status.files.begin(), failed.status.files.end(),
+                      "22_22_4096.png") == failed.status.files.end(),
+        "shadow failure publishes no finished PNG");
+  }
   services.render = ordinary_render;
   services.load = [&](const auto &, const std::string &map, const Cancel &) {
     if (map == "23_22")

@@ -1,6 +1,7 @@
 add_executable(territory_tests TestMain.cpp Fixtures.cpp JobTests.cpp ReferenceTests.cpp TextureTests.cpp MaterialTests.cpp MaterialAudit.cpp GeometryTests.cpp SceneAudit.cpp)
 target_link_libraries(territory_tests PRIVATE territory unreal geodata geometry rendering)
 target_sources(territory_tests PRIVATE RasterTests.cpp)
+target_sources(territory_tests PRIVATE ShadowProjectionTests.cpp)
 target_sources(territory_tests PRIVATE TerrainGeometryTests.cpp)
 target_sources(territory_tests PRIVATE GpuRasterTests.cpp)
 target_sources(territory_tests PRIVATE FlattenedDrawTests.cpp)

@@ -96,7 +96,16 @@ parse_territory_command(const std::vector<std::string> &args) {
       result.settings.water = false;
       continue;
     }
-    if (arg != "--client-root" && arg != "--output" && arg != "--resolution")
+    if (arg == "--no-textures") {
+      result.settings.textures = false;
+      continue;
+    }
+    if (arg == "--shadows") {
+      result.settings.shadows = true;
+      continue;
+    }
+    if (arg != "--client-root" && arg != "--output" && arg != "--resolution" &&
+        arg != "--sun-azimuth" && arg != "--sun-elevation")
       throw std::invalid_argument("Unknown or incompatible option: " + arg);
     if (++n == args.size() || args[n].starts_with("--") || args[n].empty())
       throw std::invalid_argument("Missing value: " + arg);
@@ -104,7 +113,7 @@ parse_territory_command(const std::vector<std::string> &args) {
       result.client = territory::path_from_utf8(args[n]);
     else if (arg == "--output")
       result.output = territory::path_from_utf8(args[n]);
-    else {
+    else if (arg == "--resolution") {
       const auto &text = args[n];
       int value = 0;
       auto [end, error] =
@@ -112,13 +121,29 @@ parse_territory_command(const std::vector<std::string> &args) {
       if (error != std::errc{} || end != text.data() + text.size())
         throw std::invalid_argument("Invalid resolution");
       result.settings.resolution = value;
+    } else {
+      const auto &text = args[n];
+      double value = 0.0;
+      auto [end, error] =
+          std::from_chars(text.data(), text.data() + text.size(), value);
+      if (error != std::errc{} || end != text.data() + text.size())
+        throw std::invalid_argument("Invalid sun angle: " + text);
+      if (arg == "--sun-azimuth")
+        result.settings.sun_azimuth_deg = value;
+      else
+        result.settings.sun_elevation_deg = value;
     }
   }
   if (modes != 1)
     throw std::invalid_argument("Choose exactly one territory mode");
   if (result.mode == territory::Mode::Inspect &&
-      (seen.contains("--resolution") || seen.contains("--no-water")))
+      (seen.contains("--resolution") || seen.contains("--no-water") ||
+       seen.contains("--no-textures") || seen.contains("--shadows") ||
+       seen.contains("--sun-azimuth") || seen.contains("--sun-elevation")))
     throw std::invalid_argument("Inspect does not accept raster options");
+  if (!result.settings.shadows &&
+      (seen.contains("--sun-azimuth") || seen.contains("--sun-elevation")))
+    throw std::invalid_argument("Sun angles require --shadows");
   if (result.client.empty() || result.output.empty() || result.maps.empty())
     throw std::invalid_argument(
         "Required: --client-root <sam> --output <directory> -- dd_dd [...]");

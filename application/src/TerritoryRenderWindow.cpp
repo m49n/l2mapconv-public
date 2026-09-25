@@ -18,7 +18,7 @@ void draw_territory_render_window(TerritoryRenderViewState &view,
                                   const MapSelectionContext &selection,
                                   ClientSessionContext &client) {
   ImGui::SetNextWindowPos({990, 540}, ImGuiCond_FirstUseEver);
-  ImGui::SetNextWindowSize({430, 380}, ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowSize({430, 500}, ImGuiCond_FirstUseEver);
   if (!ImGui::Begin("Territory Render")) {
     ImGui::End();
     return;
@@ -53,6 +53,20 @@ void draw_territory_render_window(TerritoryRenderViewState &view,
     ImGui::EndCombo();
   }
   ImGui::Checkbox("Water (supported surfaces)", &view.settings.water);
+  ImGui::Checkbox("Textures", &view.settings.textures);
+  ImGui::Separator();
+  ImGui::TextUnformatted("Shadows");
+  ImGui::Checkbox("Enable shadows", &view.settings.shadows);
+  ImGui::BeginDisabled(!view.settings.shadows);
+  const double azimuth_min = 0.0, azimuth_max = 360.0;
+  const double elevation_min = 15.0, elevation_max = 80.0;
+  ImGui::SliderScalar("Sun direction", ImGuiDataType_Double,
+                      &view.settings.sun_azimuth_deg, &azimuth_min,
+                      &azimuth_max, "%.0f deg");
+  ImGui::SliderScalar("Sun elevation", ImGuiDataType_Double,
+                      &view.settings.sun_elevation_deg, &elevation_min,
+                      &elevation_max, "%.0f deg");
+  ImGui::EndDisabled();
   ImGui::TextWrapped("Output: %s", territory::path_utf8(view.output).c_str());
   if (ImGui::Button("Browse output...")) {
     if (auto chosen = choose_directory(
@@ -70,7 +84,7 @@ void draw_territory_render_window(TerritoryRenderViewState &view,
   ImGui::SameLine();
   if (ImGui::Button("Inspect textures")) {
     view.error.clear();
-    controller.start(client.current_client(), maps, view.settings, view.output,
+    controller.start(client.current_client(), maps, territory::Settings{}, view.output,
                      territory::Mode::Inspect);
     client.set_switch_blocked(controller.active());
   }

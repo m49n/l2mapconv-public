@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <territory/GeometricNormals.h>
+#include <territory/ShadowProjection.h>
 #include <territory/TerritoryRenderer.h>
 #include <territory/TileLayout.h>
 #include <thread>
@@ -41,6 +42,55 @@ void main() {
     1.0-2.0*(local.y-tile_bounds.y)/tile_bounds.w,
     1.0-2.0*(local.z-z_bounds.x)/(z_bounds.y-z_bounds.x),1.0);
 })glsl";
+const std::string shadow_color_vertex_source = R"glsl(#version 330 core
+layout(location=0) in vec3 position;
+layout(location=1) in vec3 normal;
+layout(location=2) in vec2 uv0;
+layout(location=3) in vec2 uv1;
+layout(location=4) in vec2 uv2;
+layout(location=5) in vec2 uv3;
+layout(location=6) in vec4 color;
+uniform mat4 model;
+uniform mat3 normal_matrix;
+uniform vec4 tile_bounds;
+uniform vec2 z_bounds;
+uniform vec2 region_size;
+uniform mat4 world_to_uv;
+uniform bool terrain;
+out vec2 v_uv[4];out vec3 v_normal;out vec4 v_color;out vec2 v_mask;
+out vec3 v_world;
+void main() {
+  vec3 local=(model*vec4(position,1.0)).xyz;
+  v_uv[0]=terrain ? (world_to_uv*vec4(local,1.0)).xy : uv0;
+  v_uv[1]=uv1;v_uv[2]=uv2;v_uv[3]=uv3;
+  v_mask=local.xy/region_size;
+  v_world=local;
+  v_normal=normal_matrix*normal;v_color=color;
+  gl_Position=vec4(2.0*(local.x-tile_bounds.x)/tile_bounds.z-1.0,
+    1.0-2.0*(local.y-tile_bounds.y)/tile_bounds.w,
+    1.0-2.0*(local.z-z_bounds.x)/(z_bounds.y-z_bounds.x),1.0);
+})glsl";
+const std::string shadow_vertex_source = R"glsl(#version 330 core
+layout(location=0) in vec3 position;
+layout(location=2) in vec2 uv0;
+layout(location=3) in vec2 uv1;
+layout(location=4) in vec2 uv2;
+layout(location=5) in vec2 uv3;
+layout(location=6) in vec4 color;
+uniform mat4 model;
+uniform mat4 shadow_matrix;
+uniform mat4 world_to_uv;
+uniform vec2 region_size;
+uniform bool terrain;
+out vec2 v_uv[4];out vec4 v_color;out vec2 v_mask;
+void main() {
+  vec3 local=(model*vec4(position,1.0)).xyz;
+  v_uv[0]=terrain ? (world_to_uv*vec4(local,1.0)).xy : uv0;
+  v_uv[1]=uv1;v_uv[2]=uv2;v_uv[3]=uv3;
+  v_color=color;
+  v_mask=local.xy/region_size;
+  gl_Position=shadow_matrix*vec4(local,1.0);
+})glsl";
 std::set<std::uint32_t> samples(const RenderMaterial &m) {
   std::set<std::uint32_t> result;
   for (auto &n : m.nodes)
@@ -48,10 +98,12 @@ std::set<std::uint32_t> samples(const RenderMaterial &m) {
       result.insert(*n.texture);
   return result;
 }
-std::string fragment_source(const RenderMaterial &m, bool mask) {
+std::string fragment_source(const RenderMaterial &m, bool mask,
+                            bool shadows) {
   std::string s = R"glsl(#version 330 core
 in vec2 v_uv[4];in vec3 v_normal;in vec4 v_color;in vec2 v_mask;
 uniform bool alpha_test;uniform float alpha_ref;uniform bool unlit;
+uniform bool show_textures;uniform vec3 flat_color;
 out vec4 fragment;
 )glsl";
   if (mask)
@@ -61,7 +113,24 @@ out vec4 fragment;
   for (std::size_t i = 0; i < m.nodes.size(); ++i)
     if (m.nodes[i].op == Op::Sample)
       s += "uniform mat3 uv_" + std::to_string(i) + ";\n";
+  if (shadows)
+    s += R"glsl(in vec3 v_world;
+uniform sampler2DShadow shadow_map;
+uniform mat4 shadow_matrix;
+uniform vec3 sun_direction;
+uniform float shadow_texel;
+)glsl";
   s += "vec4 material() {\n" + material_expression(m) + "}\n";
+  if (shadows) {
+    s += R"glsl(void main() {
+  vec4 color=material();
+  if(alpha_test && color.a<alpha_ref)discard;
+  vec3 n=length(v_normal)>0.0001?normalize(v_normal):vec3(0,0,1);
+  if(!gl_FrontFacing)n=-n;
+  float shade=1.0;
+  if(!unlit)shade=0.72+0.28*max(dot(n,sun_direction),0.0);
+)glsl";
+  } else {
   s += R"glsl(void main() {
   vec4 color=material();
   if(alpha_test && color.a<alpha_ref)discard;
@@ -72,11 +141,44 @@ out vec4 fragment;
     shade=0.72+0.28*max(dot(n,normalize(vec3(-0.35,-0.50,1.0))),0.0);
   }
   )glsl";
+  }
   if (mask)
     s += "color.a=texture(terrain_mask,v_mask).r;\n";
+  s += "if(!show_textures)color.rgb=flat_color;\n";
+  if (shadows)
+    s += R"glsl(vec4 light=shadow_matrix*vec4(v_world,1.0);
+  vec3 projected=light.xyz/light.w*0.5+0.5;
+  float visibility=1.0;
+  if(all(greaterThanEqual(projected,vec3(0.0))) &&
+     all(lessThanEqual(projected,vec3(1.0)))) {
+    visibility=0.0;
+    float slope=1.0-max(dot(n,sun_direction),0.0);
+    float bias=clamp(1.5*shadow_texel*(1.0+2.0*slope),0.0002,0.01);
+    for(int dy=-1;dy<=1;++dy)
+      for(int dx=-1;dx<=1;++dx)
+        visibility+=texture(shadow_map,vec3(projected.xy+
+          vec2(dx,dy)*shadow_texel,projected.z-bias));
+    visibility/=9.0;
+  }
+  color.rgb*=mix(0.58,1.0,visibility);
+)glsl";
   s += R"glsl(
   fragment=vec4(color.rgb*shade,color.a);
 })glsl";
+  return s;
+}
+std::string shadow_fragment_source(const RenderMaterial &m) {
+  std::string s = R"glsl(#version 330 core
+in vec2 v_uv[4];in vec4 v_color;in vec2 v_mask;
+uniform float alpha_ref;
+)glsl";
+  for (auto i : samples(m))
+    s += "uniform sampler2D tex_" + std::to_string(i) + ";\n";
+  for (std::size_t i = 0; i < m.nodes.size(); ++i)
+    if (m.nodes[i].op == Op::Sample)
+      s += "uniform mat3 uv_" + std::to_string(i) + ";\n";
+  s += "vec4 material() {\n" + material_expression(m) + "}\n";
+  s += "void main(){if(material().a<alpha_ref)discard;}\n";
   return s;
 }
 GLint uniform(GLuint p, const char *name) {
@@ -219,6 +321,31 @@ struct Framebuffers {
     gl::check("framebuffer allocation");
   }
 };
+struct ShadowFramebuffer {
+  Handle framebuffer{Kind::Framebuffer}, depth{Kind::Texture};
+  explicit ShadowFramebuffer(int size) {
+    glBindTexture(GL_TEXTURE_2D, depth);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, size, size, 0,
+                 GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    const GLfloat border[] = {1.f, 1.f, 1.f, 1.f};
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE,
+                    GL_COMPARE_REF_TO_TEXTURE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
+                           depth, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+      throw std::runtime_error("Shadow depth framebuffer unavailable");
+    gl::check("shadow framebuffer allocation");
+  }
+};
 struct PreparedDraw {
   const Draw *draw{};
   std::size_t mesh{}, first_index{}, index_count{};
@@ -289,6 +416,12 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
   glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_units);
   if (settings.max_texture_units > 0)
     max_units = std::min(max_units, settings.max_texture_units);
+  if (settings.shadows &&
+      (!std::isfinite(settings.sun_azimuth_deg) ||
+       settings.sun_azimuth_deg < 0 || settings.sun_azimuth_deg > 360 ||
+       !std::isfinite(settings.sun_elevation_deg) ||
+       settings.sun_elevation_deg < 15 || settings.sun_elevation_deg > 80))
+    throw std::invalid_argument("Invalid shadow sun angles");
   if (settings.tile_size > max_renderbuffer)
     throw std::runtime_error("GPU framebuffer tile size limit");
   const int sample_count = std::min(settings.samples, max_samples);
@@ -310,12 +443,14 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
   }
   std::map<std::string, Handle> programs;
   auto get_program = [&](const RenderMaterial &m, bool mask) {
-    auto fs = fragment_source(m, mask);
+    auto fs = fragment_source(m, mask, settings.shadows);
     auto found = programs.find(fs);
     if (found != programs.end())
       return static_cast<GLuint>(found->second);
     check_cancel(cancel);
-    auto p = gl::program(vertex_source, fs);
+    auto p = gl::program(settings.shadows ? shadow_color_vertex_source
+                                          : vertex_source,
+                         fs);
     auto id = static_cast<GLuint>(p);
     programs.emplace(std::move(fs), std::move(p));
     return id;
@@ -338,6 +473,10 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
   for (const auto &[key, surfaces] : used_materials) {
     auto material = scene.library.materials[key.first];
     const auto required = samples(material).size() + std::size_t(key.second);
+    if (settings.shadows && required + 1 > static_cast<std::size_t>(max_units))
+      throw std::runtime_error(
+          "GPU sampler limit cannot reserve a unit for shadow map: " +
+          material.source);
     if (required > static_cast<std::size_t>(max_units)) {
       info.issues.push_back(
           {IssueKind::Unsupported,
@@ -446,6 +585,141 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
     terrain_prepared = prepare(*terrain_draw, scene.meshes[*scene.terrain_mesh],
                                *scene.terrain_mesh);
   }
+  const int shadow_unit = max_units - 1;
+  ShadowProjection shadow_projection;
+  std::optional<ShadowFramebuffer> shadow_framebuffer;
+  std::size_t done = 0;
+  const std::size_t progress_total = tiles.size() + std::size_t(settings.shadows);
+  if (settings.shadows) {
+    const int shadow_size = std::min(settings.pixels, 4096);
+    GLint max_texture_size = 0, max_viewport[2]{};
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
+    glGetIntegerv(GL_MAX_VIEWPORT_DIMS, max_viewport);
+    if (settings.max_shadow_texture_size > 0)
+      max_texture_size =
+          std::min(max_texture_size, settings.max_shadow_texture_size);
+    if (shadow_size > max_texture_size || shadow_size > max_viewport[0] ||
+        shadow_size > max_viewport[1])
+      throw std::runtime_error("GPU shadow depth-map size limit: requested " +
+                               std::to_string(shadow_size));
+    Bounds coverage = scene.bounds;
+    auto include_caster = [&](const PreparedDraw &p) {
+      coverage.min_x = std::min(coverage.min_x, p.min.x);
+      coverage.min_y = std::min(coverage.min_y, p.min.y);
+      coverage.max_x = std::max(coverage.max_x, p.max.x);
+      coverage.max_y = std::max(coverage.max_y, p.max.y);
+      coverage.min_z = std::min(coverage.min_z, p.min.z);
+      coverage.max_z = std::max(coverage.max_z, p.max.z);
+    };
+    if (terrain_prepared)
+      include_caster(*terrain_prepared);
+    for (const auto &p : opaque)
+      if (!p.draw->water &&
+          scene.library.materials[p.draw->material].shadow_coverage_reliable)
+        include_caster(p);
+    shadow_projection = make_shadow_projection(
+        scene.bounds, coverage, settings.sun_azimuth_deg,
+        settings.sun_elevation_deg, shadow_size);
+    shadow_framebuffer.emplace(shadow_size);
+    info.shadow_map_size = shadow_size;
+    Handle opaque_shadow_program = gl::program(
+        shadow_vertex_source, "#version 330 core\nvoid main(){}\n");
+    std::map<std::size_t, Handle> masked_shadow_programs;
+    std::vector<std::optional<std::size_t>> omitted_caster_issues(
+        scene.library.materials.size());
+    glBindFramebuffer(GL_FRAMEBUFFER, shadow_framebuffer->framebuffer);
+    glViewport(0, 0, shadow_size, shadow_size);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(1.25f, 2.f);
+    glClearDepth(1.0);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    auto cast = [&](const PreparedDraw &p, const RenderMaterial &material,
+                    std::size_t material_id) {
+      check_cancel(cancel);
+      if (p.draw->water)
+        return;
+      if (!material.shadow_coverage_reliable) {
+        auto &index = omitted_caster_issues.at(material_id);
+        if (!index) {
+          index = info.issues.size();
+          info.issues.push_back(
+              {IssueKind::Simplified, material.source,
+               "Shadow caster omitted: material coverage cannot be evaluated "
+               "reliably",
+               {}});
+        }
+        auto &surfaces = info.issues[*index].surfaces;
+        if (std::find(surfaces.begin(), surfaces.end(), p.draw->source) ==
+            surfaces.end())
+          surfaces.push_back(p.draw->source);
+        return;
+      }
+      const bool masked = material.alpha_test || material.blend == Blend::Masked;
+      GLuint program = opaque_shadow_program;
+      if (masked) {
+        auto found = masked_shadow_programs.find(material_id);
+        if (found == masked_shadow_programs.end()) {
+          auto shader = gl::program(shadow_vertex_source,
+                                    shadow_fragment_source(material));
+          found = masked_shadow_programs
+                      .emplace(material_id, std::move(shader))
+                      .first;
+        }
+        program = found->second;
+      }
+      glUseProgram(program);
+      matrix(program, "model", p.model);
+      matrix(program, "shadow_matrix",
+             shadow_projection.relative_world_to_clip);
+      glUniform1i(uniform(program, "terrain"), false);
+      glUniform2f(uniform(program, "region_size"),
+                  float(scene.bounds.max_x - scene.bounds.min_x),
+                  float(scene.bounds.max_y - scene.bounds.min_y));
+      matrix(program, "world_to_uv", glm::mat4(1.f));
+      if (masked) {
+        glUniform1f(uniform(program, "alpha_ref"), material.alpha_ref);
+        int unit = 0;
+        for (auto id : samples(material)) {
+          glActiveTexture(GL_TEXTURE0 + unit);
+          glBindTexture(GL_TEXTURE_2D, textures[id]);
+          glUniform1i(uniform(program, ("tex_" + std::to_string(id)).c_str()),
+                      unit++);
+        }
+        for (std::size_t i = 0; i < material.nodes.size(); ++i)
+          if (material.nodes[i].op == Op::Sample)
+            glUniformMatrix3fv(
+                uniform(program, ("uv_" + std::to_string(i)).c_str()), 1,
+                GL_FALSE, glm::value_ptr(material.nodes[i].uv));
+      }
+      glFrontFace(p.mirrored ? GL_CW : GL_CCW);
+      if (material.two_sided)
+        glDisable(GL_CULL_FACE);
+      else {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+      }
+      glBindVertexArray(meshes[p.mesh].vao);
+      glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(p.index_count),
+                     GL_UNSIGNED_INT,
+                     reinterpret_cast<const void *>(p.first_index *
+                                                    sizeof(std::uint32_t)));
+    };
+    if (terrain_prepared)
+      cast(*terrain_prepared, neutral, scene.library.materials.size());
+    for (const auto &p : opaque)
+      cast(p, scene.library.materials[p.draw->material], p.draw->material);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    gl::check("shadow depth pass");
+    if (progress)
+      progress(++done, progress_total);
+    else
+      ++done;
+  }
   const int n = settings.pixels;
   Framebuffers fb(settings.tile_size, settings.tile_size, sample_count);
   glEnable(GL_FRAMEBUFFER_SRGB);
@@ -453,7 +727,6 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
   glEnable(GL_MULTISAMPLE);
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
   std::vector<std::uint8_t> band, readback;
-  std::size_t done = 0;
   int band_y = -1, band_height = 0;
   auto draw = [&](const PreparedDraw &p, const RenderMaterial &m,
                   GLuint program, const Tile &tile, const TerrainLayer *layer,
@@ -480,12 +753,32 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
                 m.alpha_test || m.blend == Blend::Masked);
     glUniform1f(uniform(program, "alpha_ref"), m.alpha_ref);
     glUniform1i(uniform(program, "unlit"), m.unlit);
+    if (settings.shadows) {
+      matrix(program, "shadow_matrix",
+             shadow_projection.relative_world_to_clip);
+      glUniform3fv(uniform(program, "sun_direction"), 1,
+                   glm::value_ptr(shadow_projection.surface_to_sun));
+      glUniform1f(uniform(program, "shadow_texel"),
+                  1.f / shadow_projection.size);
+      glActiveTexture(GL_TEXTURE0 + shadow_unit);
+      glBindTexture(GL_TEXTURE_2D, shadow_framebuffer->depth);
+      glUniform1i(uniform(program, "shadow_map"), shadow_unit);
+    }
+    glUniform1i(uniform(program, "show_textures"), settings.textures);
+    const glm::vec3 flat_color = terrain_base
+                                     ? glm::vec3(.35f)
+                                     : layer ? glm::vec3(.55f)
+                                             : p.draw->water
+                                                   ? glm::vec3(.28f, .38f, .47f)
+                                                   : glm::vec3(.62f);
+    glUniform3f(uniform(program, "flat_color"), flat_color.x, flat_color.y,
+                flat_color.z);
     auto world_uv = layer ? glm::dmat4(layer->world_to_uv) : glm::dmat4(1);
     world_uv[3] += world_uv * glm::dvec4(region, 0);
     matrix(program, "world_to_uv", glm::mat4(world_uv));
     int unit = 0;
     for (auto id : samples(m)) {
-      if (unit >= max_units - int(layer != nullptr))
+      if (unit >= max_units - int(layer != nullptr) - int(settings.shadows))
         throw std::logic_error("Unprepared GPU sampler overflow: " + m.source);
       glActiveTexture(GL_TEXTURE0 + unit);
       glBindTexture(GL_TEXTURE_2D, textures[id]);
@@ -581,7 +874,7 @@ RasterInfo TerritoryRenderer::render(const VisualScene &scene,
                   tile.width * 3,
                   band.data() + (static_cast<std::size_t>(y) * n + tile.x) * 3);
     if (progress)
-      progress(++done, tiles.size());
+      progress(++done, progress_total);
     else
       ++done;
     if (tile.x + tile.width == n) {

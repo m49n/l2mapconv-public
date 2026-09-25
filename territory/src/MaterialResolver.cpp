@@ -74,9 +74,11 @@ struct MaterialResolver::Impl {
       return visit(m, ref.untyped(), reference, usage, uv, channel, depth);
     } catch (const Unsupported &e) {
       issue(IssueKind::Unsupported, identity(reference), e.what());
+      m.shadow_coverage_reliable = false;
       return constant(m);
     } catch (const std::exception &e) {
       issue(IssueKind::Corrupt, identity(reference), e.what());
+      m.shadow_coverage_reliable = false;
       return constant(m);
     }
   }
@@ -91,6 +93,7 @@ struct MaterialResolver::Impl {
          reference_stack.empty() ? std::string{} : reference_stack.back(),
          object ? "resolved" : "missing", usage});
     if (!object) {
+      m.shadow_coverage_reliable = false;
       if (!reference.object_path.empty()) {
         const bool absent = package_probe && !package_probe(reference.package);
         issue(absent ? IssueKind::MissingPackage : IssueKind::MissingObject,
@@ -144,6 +147,7 @@ struct MaterialResolver::Impl {
           issue(supported && !texture->mips.empty() ? IssueKind::Corrupt
                                                     : IssueKind::Unsupported,
                 source, e.what());
+          m.shadow_coverage_reliable = false;
           return constant(m);
         }
       } else
@@ -400,6 +404,7 @@ struct MaterialResolver::Impl {
       material.class_name = ref.class_name;
       material.reference_chain = std::move(chain);
       material.root = constant(material);
+      material.shadow_coverage_reliable = false;
     }
     const auto id = static_cast<std::uint32_t>(library.materials.size());
     library.materials.push_back(std::move(material));

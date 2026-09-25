@@ -142,8 +142,11 @@ RunResult run_job(const Job &input, const Progress &progress,
         {"projection", "orthographic, north=-Y"},
         {"color", "RGB8 sRGB; color sampling and blending in linear light; "
                   "data masks linear"},
-        {"lighting", "fixed neutral directional; no retail lightmaps/fog; "
-                     "unlit where supported"},
+        {"lighting", job.settings.shadows
+                         ? "selected directional sun with geometry depth-map "
+                           "shadows; no retail lightmaps/fog"
+                         : "fixed neutral directional; no retail lightmaps/fog; "
+                           "unlit where supported"},
         {"time_seconds", 0},
         {"transparency", "orthographic back-to-front draw bounds; intersecting "
                          "transparent geometry is approximate"},
@@ -223,6 +226,11 @@ RunResult run_job(const Job &input, const Progress &progress,
                      job.settings.resolution)
               : Json(nullptr);
       metadata["water_enabled"] = job.settings.water;
+      metadata["textures_enabled"] = job.settings.textures;
+      metadata["shadows_enabled"] = job.settings.shadows;
+      metadata["sun_azimuth_deg"] = job.settings.sun_azimuth_deg;
+      metadata["sun_elevation_deg"] = job.settings.sun_elevation_deg;
+      metadata["shadow_map_size"] = 0;
       metadata["loaded_textures"] = scene.library.textures.size();
       metadata["material_count"] = scene.library.materials.size();
       metadata["material_inventory"] = material_inventory(scene);
@@ -239,6 +247,10 @@ RunResult run_job(const Job &input, const Progress &progress,
         RasterSettings settings{job.settings.resolution,
                                 std::min(2048, job.settings.resolution), 4,
                                 job.settings.water};
+        settings.textures = job.settings.textures;
+        settings.shadows = job.settings.shadows;
+        settings.sun_azimuth_deg = job.settings.sun_azimuth_deg;
+        settings.sun_elevation_deg = job.settings.sun_elevation_deg;
         auto info = services.render(
             scene, settings, cancel,
             [&](std::size_t done, std::size_t total) {
@@ -275,6 +287,9 @@ RunResult run_job(const Job &input, const Progress &progress,
         report.maps[report_index]["image"] = filename;
         report.maps[report_index]["gpu"] = info.gpu;
         report.maps[report_index]["msaa_samples"] = info.samples;
+        report.maps[report_index]["shadow_map_size"] = info.shadow_map_size;
+        report.maps[report_index]["shadow_map_bounded"] =
+            info.shadow_map_size > 0 && info.shadow_map_size < settings.pixels;
       }
       processed.push_back(map);
       report.maps[report_index]["completed"] = true;

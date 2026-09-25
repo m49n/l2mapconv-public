@@ -138,7 +138,13 @@ interactive viewer was built with `L2MAPCONV_LOAD_TEXTURES=OFF`.
 In the viewer, mark squares in **Maps**, then use **Territory Render**:
 
 - Choose **1K / 2K / 4K / 8K / 16K** (1024 / 2048 / 4096 / 8192 / 16384 pixels, default 8K).
-- Choose an output folder outside the client; toggle supported water surfaces.
+- Choose an output folder outside the client; toggle supported water surfaces
+  and textures. Texture-off mode keeps geometry, cutouts and terrain masks but
+  draws neutral category colors; it does not promise faster loading.
+- Enable **Shadows** to render a geometry-based depth map. Adjust sun direction
+  (0–360° clockwise from north) and elevation (15–80°). Defaults are 315° and
+  40°; shadows are off by default. The depth map is capped at 4096 pixels even
+  for 8K/16K output, so its edges can look softer at higher resolutions.
 - **Render selected** exports the manually checked maps, one at a time, with
   full visual geometry regardless of preview residency or visibility settings.
 - **Inspect textures** checks references/material support without a GPU render.
@@ -152,13 +158,16 @@ The same backend is available to scripts and agents:
 .\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 8192 -- 22_22
 .\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 1024 -- 16_24 16_25
 .\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 16384 --no-water -- 22_22 24_18
+.\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 4096 --shadows --sun-azimuth 315 --sun-elevation 40 -- 23_18
+.\l2mapconv.exe --render-territory --client-root 'D:\clients\sam' --output 'D:\radar' --resolution 1024 --no-textures -- 23_18
 .\l2mapconv.exe --inspect-territory --client-root 'D:\clients\sam' --output 'D:\radar-audit' -- 22_22
 ```
 
 New public commands emit exactly one JSON result to stdout; diagnostics go to
 stderr. Exit codes: **0** completed (possibly with warnings), **2** invalid
 input/startup, **3** execution failure, **130** cancellation. Inspect rejects
-render-only options. `--preview` and `--build` retain their existing behavior.
+render-only options. Sun overrides require `--shadows`. `--preview` and
+`--build` retain their existing behavior.
 The internal `--render-job <absolute-directory>` route is for owned UI workers,
 not an alternative public command-line syntax.
 
@@ -170,7 +179,8 @@ completed rendered maps, `<map>_<resolution>.png`. UI workers also write
 filter by `.png` when collecting images. `schema_version` is currently 1.
 Reports distinguish missing packages/objects, unsupported/corrupt data and
 explicit simplifications, and record primary map SHA-256, bounds, density,
-resolution, GPU, water evidence and processed/unprocessed maps. The hash is of
+resolution, GPU, water/texture/shadow choices, sun angles, actual shadow-map
+size, and processed/unprocessed maps. The hash is of
 the primary `.unr`, **not** a complete texture-package manifest.
 
 Each map's `material_inventory` includes successful and non-textured materials,

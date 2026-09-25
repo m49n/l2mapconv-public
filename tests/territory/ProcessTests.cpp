@@ -164,6 +164,17 @@ int process_tests() {
   TestDirectory temp;
   auto client = temp.path() / "client";
   std::filesystem::create_directory(client);
+  {
+    auto legacy = to_json(Job{"old-request", temp.path() / "old-run", client,
+                              {"22_22"}, Mode::Render, {4096, true}});
+    for (auto key : {"textures", "shadows", "sun_azimuth_deg",
+                     "sun_elevation_deg"})
+      legacy.erase(key);
+    const auto recovered = job_from_json(legacy, temp.path() / "old-run");
+    failures += expect(recovered.settings.textures &&
+                           !recovered.settings.shadows,
+                       "worker accepts request JSON from before appearance options");
+  }
   auto clock = std::chrono::steady_clock::time_point{};
   auto make = [&] { return std::make_unique<FakeProcess>(); };
   {

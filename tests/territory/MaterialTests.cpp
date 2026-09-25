@@ -105,6 +105,31 @@ int material_tests() {
                   [](const auto &t) { return t.usage == TextureUsage::Mask; }),
       "opacity bitmap keeps data color-space");
   failures += expect(report.issues.empty(), "supported graph is not missing");
+  failures += expect(material.shadow_coverage_reliable,
+                     "supported material keeps reliable shadow coverage");
+  {
+    RenderMaterial uv_cutout;
+    uv_cutout.blend = Blend::Masked;
+    Node sample;
+    sample.op = Op::Sample;
+    sample.texture = 0;
+    sample.uv_channel = 1;
+    uv_cutout.nodes.push_back(sample);
+    const auto missing = neutralize_missing_uv_samples(
+        uv_cutout, std::array<bool, 4>{true, false, false, false});
+    failures += expect(missing == std::vector<int>{1} &&
+                           !uv_cutout.shadow_coverage_reliable &&
+                           uv_cutout.nodes[0].op == Op::Constant,
+                       "absent UV channel marks masked coverage unreliable");
+    RenderMaterial supported_uv;
+    supported_uv.nodes.push_back(sample);
+    const auto available = neutralize_missing_uv_samples(
+        supported_uv, std::array<bool, 4>{true, true, false, false});
+    failures += expect(available.empty() &&
+                           supported_uv.shadow_coverage_reliable &&
+                           supported_uv.nodes[0].op == Op::Sample,
+                       "available UV channel preserves reliable sample");
+  }
   {
     VisualScene scene;
     scene.library = library;
@@ -188,6 +213,28 @@ int material_tests() {
                    "actor:unknown");
   failures += expect(report.issues.size() > before,
                      "unknown enum is reported, not mapped to known op");
+  auto masked_unknown = std::make_shared<unreal::Shader>(archive);
+  masked_unknown->set_property(property("Diffuse", bitmap_index));
+  masked_unknown->set_property(property("Opacity", unknown_index));
+  masked_unknown->output_blending = unreal::OB_Masked;
+  auto masked_unknown_index = add(masked_unknown, "Shader", "MaskedUnknown");
+  auto masked_unknown_id = resolver.resolve(
+      masked_unknown,
+      archive.object_reference(unreal::Index{masked_unknown_index}),
+      "actor:masked-unknown");
+  failures += expect(!library.materials[masked_unknown_id].shadow_coverage_reliable,
+                     "unsupported masked opacity cannot cast a solid shadow");
+  auto masked_missing = std::make_shared<unreal::Shader>(archive);
+  masked_missing->set_property(property("Diffuse", bitmap_index));
+  masked_missing->set_property(property("Opacity", 999));
+  masked_missing->output_blending = unreal::OB_Masked;
+  auto masked_missing_index = add(masked_missing, "Shader", "MaskedMissing");
+  auto masked_missing_id = resolver.resolve(
+      masked_missing,
+      archive.object_reference(unreal::Index{masked_missing_index}),
+      "actor:masked-missing");
+  failures += expect(!library.materials[masked_missing_id].shadow_coverage_reliable,
+                     "missing masked opacity cannot cast a solid shadow");
   resolver.set_package_probe(
       [](std::string_view p) { return p != "AbsentPackage"; });
   resolver.resolve({}, {"AbsentPackage", "Tex", "Texture"}, "missing:package");

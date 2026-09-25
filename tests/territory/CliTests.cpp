@@ -24,6 +24,43 @@ int cli_tests() {
   failures += expect(c && c->settings.resolution == 8192 && c->settings.water &&
                          c->maps == std::vector<std::string>{"22_22", "24_18"},
                      "render defaults and unique sorted maps");
+  {
+    auto options = base;
+    options.insert(options.end(), {"--no-textures", "--shadows",
+                                   "--sun-azimuth", "120",
+                                   "--sun-elevation", "55", "--", "22_22"});
+    auto selected = parse_territory_command(options);
+    failures += expect(selected && !selected->settings.textures &&
+                           selected->settings.shadows &&
+                           selected->settings.sun_azimuth_deg == 120.0 &&
+                           selected->settings.sun_elevation_deg == 55.0,
+                       "CLI records explicit appearance settings");
+    for (auto angle : {"--sun-azimuth", "--sun-elevation"}) {
+      auto without_shadows = base;
+      without_shadows.insert(without_shadows.end(),
+                             {angle, "50", "--", "22_22"});
+      failures += expect(
+          throws([&] { parse_territory_command(without_shadows); }),
+          "sun overrides require shadows flag");
+    }
+    for (auto value : {"nan", "inf", "361", "-1", "east", "30x"}) {
+      auto invalid = base;
+      invalid.insert(invalid.end(),
+                     {"--shadows", "--sun-azimuth", value, "--", "22_22"});
+      failures += expect(throws([&] { parse_territory_command(invalid); }),
+                         "reject malformed sun direction before job creation");
+    }
+    for (auto flag : std::vector<std::vector<std::string>>{
+             {"--no-textures"}, {"--shadows"}, {"--sun-azimuth", "120"},
+             {"--sun-elevation", "55"}}) {
+      auto inspect = base;
+      inspect[1] = "--inspect-territory";
+      inspect.insert(inspect.end(), flag.begin(), flag.end());
+      inspect.insert(inspect.end(), {"--", "22_22"});
+      failures += expect(throws([&] { parse_territory_command(inspect); }),
+                         "inspect rejects render appearance option");
+    }
+  }
   for (auto resolution : {"1024", "2048", "4096", "8192", "16384"}) {
     auto a = base;
     a.insert(a.end(),

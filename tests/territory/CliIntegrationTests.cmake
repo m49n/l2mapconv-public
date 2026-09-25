@@ -14,6 +14,8 @@ if(NOT code EQUAL 2 OR NOT diagnostic MATCHES "Invalid territory job")
     message(FATAL_ERROR "Malformed internal worker must fail without desktop fallback: ${code}: ${diagnostic}")
 endif()
 execute_process(COMMAND "${APP}" --help RESULT_VARIABLE code OUTPUT_VARIABLE output ERROR_VARIABLE diagnostic TIMEOUT 10)
-if(NOT code EQUAL 0 OR NOT output MATCHES "--render-territory" OR NOT output MATCHES "--build")
+if(NOT code EQUAL 0 OR NOT output MATCHES "--render-territory" OR
+   NOT output MATCHES "--no-textures" OR NOT output MATCHES "--shadows" OR
+   NOT output MATCHES "--build")
     message(FATAL_ERROR "Combined legacy/territory help missing: ${code}: ${output}")
 endif()

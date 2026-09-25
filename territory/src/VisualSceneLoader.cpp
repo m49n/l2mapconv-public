@@ -245,25 +245,16 @@ VisualScene VisualSceneLoader::load(const std::string &name,
   };
   auto uv_check = [&](std::size_t id, const std::array<bool, 4> &channels,
                       const std::string &label) {
-    bool bad = false;
-    for (auto &n : scene.library.materials[id].nodes)
-      if (n.op == Op::Sample &&
-          (n.uv_channel < 0 || n.uv_channel >= 4 || !channels[n.uv_channel]))
-        bad = true;
-    if (!bad)
-      return id;
     auto copy = scene.library.materials[id];
+    const auto missing = neutralize_missing_uv_samples(copy, channels);
+    if (missing.empty())
+      return id;
     copy.source += " [unsupported UV channel]";
-    for (auto &n : copy.nodes)
-      if (n.op == Op::Sample &&
-          (n.uv_channel < 0 || n.uv_channel >= 4 || !channels[n.uv_channel])) {
-        issue(IssueKind::Unsupported, label,
-              "Material " + copy.source + " requires absent UV channel " +
-                  std::to_string(n.uv_channel) +
-                  "; only this sample is neutralized");
-        n = Node{};
-        n.value = {.5f, .5f, .5f, 1.f};
-      }
+    for (auto channel : missing)
+      issue(IssueKind::Unsupported, label,
+            "Material " + copy.source + " requires absent UV channel " +
+                std::to_string(channel) +
+                "; only this sample is neutralized");
     scene.library.materials.push_back(std::move(copy));
     return scene.library.materials.size() - 1;
   };

@@ -73,6 +73,34 @@ int ui_tests() {
       }
     }
   }
+  {
+    Settings chosen{4096, false, false, true, 120.0, 55.0};
+    auto cli = parse_territory_command(
+        {"app", "--render-territory", "--client-root", path_utf8(root),
+         "--output", path_utf8(temp.path() / "sun-out"), "--resolution", "4096",
+         "--no-water", "--no-textures", "--shadows", "--sun-azimuth", "120",
+         "--sun-elevation", "55", "--", "22_22"});
+    TerritoryRenderController controller(temp.path() / "app.exe",
+                                         std::make_unique<UiProcess>());
+    failures += expect(
+        cli && controller.start(root, selected_render_maps(selection), chosen,
+                                temp.path() / "sun-out"),
+        "UI starts selected appearance job");
+    if (controller.active() && cli) {
+      const auto stored = job_from_json(
+          read_json(controller.job_directory() / "request.json"),
+          controller.job_directory());
+      failures += expect(
+          stored.settings.resolution == cli->settings.resolution &&
+              stored.settings.water == cli->settings.water &&
+              stored.settings.textures == cli->settings.textures &&
+              stored.settings.shadows == cli->settings.shadows &&
+              stored.settings.sun_azimuth_deg == cli->settings.sun_azimuth_deg &&
+              stored.settings.sun_elevation_deg ==
+                  cli->settings.sun_elevation_deg,
+          "UI and CLI persist the same shadow appearance request");
+    }
+  }
   TerritoryRenderController inspect(temp.path() / "app.exe",
                                     std::make_unique<UiProcess>());
   failures += expect(inspect.start(root, {"22_22"}, {}, temp.path() / "inspect",

@@ -26,6 +26,10 @@ enum class Phase {
 struct Settings {
   int resolution{8192};
   bool water{true};
+  bool textures{true};
+  bool shadows{false};
+  double sun_azimuth_deg{315.0};
+  double sun_elevation_deg{40.0};
 };
 struct Job {
   std::string id;

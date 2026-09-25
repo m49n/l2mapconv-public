@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <territory/Diagnostics.h>
@@ -82,6 +83,12 @@ void validate_settings(const Settings &s) {
                 s.resolution) == render_resolutions.end())
     throw std::invalid_argument(
         "resolution must be 1024, 2048, 4096, 8192 or 16384");
+  if (!std::isfinite(s.sun_azimuth_deg) || s.sun_azimuth_deg < 0.0 ||
+      s.sun_azimuth_deg > 360.0)
+    throw std::invalid_argument("sun azimuth must be 0..360 degrees");
+  if (!std::isfinite(s.sun_elevation_deg) || s.sun_elevation_deg < 15.0 ||
+      s.sun_elevation_deg > 80.0)
+    throw std::invalid_argument("sun elevation must be 15..80 degrees");
 }
 void validate_job(const Job &j) {
   if (!identifier(j.id))
@@ -117,7 +124,11 @@ Json to_json(const Job &j) {
           {"maps", maps},
           {"mode", j.mode == Mode::Inspect ? "inspect" : "render"},
           {"resolution", j.settings.resolution},
-          {"water", j.settings.water}};
+          {"water", j.settings.water},
+          {"textures", j.settings.textures},
+          {"shadows", j.settings.shadows},
+          {"sun_azimuth_deg", j.settings.sun_azimuth_deg},
+          {"sun_elevation_deg", j.settings.sun_elevation_deg}};
 }
 Job job_from_json(const Json &value, const std::filesystem::path &directory) {
   schema(value);
@@ -138,6 +149,24 @@ Job job_from_json(const Json &value, const std::filesystem::path &directory) {
   if (!value.at("water").is_boolean())
     throw std::invalid_argument("water must be boolean");
   j.settings.water = value.at("water").get<bool>();
+  for (auto [key, destination] :
+       {std::pair{"textures", &j.settings.textures},
+        {"shadows", &j.settings.shadows}}) {
+    if (!value.contains(key))
+      continue;
+    if (!value.at(key).is_boolean())
+      throw std::invalid_argument(std::string(key) + " must be boolean");
+    *destination = value.at(key).get<bool>();
+  }
+  for (auto [key, destination] :
+       {std::pair{"sun_azimuth_deg", &j.settings.sun_azimuth_deg},
+        {"sun_elevation_deg", &j.settings.sun_elevation_deg}}) {
+    if (!value.contains(key))
+      continue;
+    if (!value.at(key).is_number())
+      throw std::invalid_argument(std::string(key) + " must be numeric");
+    *destination = value.at(key).get<double>();
+  }
   validate_job(j);
   return j;
 }
