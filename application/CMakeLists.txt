@@ -8,6 +8,8 @@ add_executable(${PROJECT_NAME}
     src/Application.cpp
     src/WindowSystem.cpp
     src/RenderingSystem.cpp
+    src/LiveVisualRenderer.cpp
+    src/LiveVisualShaders.cpp
     src/UISystem.cpp
     src/CameraSystem.cpp
     src/CameraMotion.cpp

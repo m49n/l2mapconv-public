@@ -47,11 +47,12 @@ void MapStreamingSystem::tick() {
     for (const auto &result : completed) {
       if (result.request.key ==
               MapLoadKey{m_seed_coordinate, MapLayer::Terrain} &&
-          result.error.empty() && result.map &&
+          result.error.empty() && result.payload &&
           m_loader->is_current(result.request)) {
-        m_grid = MapGridTransform::from_map(m_seed_coordinate, *result.map);
+        m_grid = MapGridTransform::from_map(m_seed_coordinate,
+                                             result.payload->map);
         if (m_grid) {
-          m_scene->place_camera_for_seed(*result.map);
+          m_scene->place_camera_for_seed(result.payload->map);
         }
         break;
       }
@@ -128,7 +129,7 @@ void MapStreamingSystem::tick() {
       continue;
     }
 
-    if (!result.error.empty() || !result.map) {
+    if (!result.error.empty() || !result.payload) {
       m_failed.insert(result.request.key);
       set_status(result.request.key, MapResidencyStatus::Failed,
                  result.error.empty() ? "Map load returned no data"
@@ -145,10 +146,27 @@ void MapStreamingSystem::tick() {
       continue;
     }
 
-    const auto group = m_scene->upload(result.request.key.coordinate,
-                                       result.request.key.layer, *result.map);
-    m_groups.insert_or_assign(result.request.key, group);
-    set_status(result.request.key, MapResidencyStatus::Resident);
+    try {
+      const auto group = m_scene->upload(result.request.key.coordinate,
+                                         result.request.key.layer,
+                                         *result.payload);
+      m_groups.insert_or_assign(result.request.key, group);
+      set_status(result.request.key, MapResidencyStatus::Resident);
+    } catch (const std::exception &error) {
+      m_failed.insert(result.request.key);
+      set_status(result.request.key, MapResidencyStatus::Failed, error.what());
+    }
+  }
+
+  // A resident Detail replaces only the same square's cheap terrain draw.
+  // Keep the terrain group allocated as an immediate fallback on failure or
+  // unloading; this also handles Detail arriving before Terrain.
+  for (const auto &[key, group] : m_groups) {
+    if (key.layer == MapLayer::Terrain) {
+      m_scene->set_visible(group,
+                           !m_groups.contains({key.coordinate,
+                                               MapLayer::Detail}));
+    }
   }
 
   std::vector<MapLoadRequest> requests;

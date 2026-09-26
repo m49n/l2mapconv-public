@@ -12,9 +12,9 @@ if("${result}" STREQUAL "0" AND candidate MATCHES "^[0-9a-f]+$")
         string(APPEND revision "-dirty")
     endif()
 endif()
-set(profile "geometry preview")
+set(profile "live material preview")
 if(LOAD_TEXTURES)
-    set(profile "legacy textured preview")
+    set(profile "live + legacy textured preview")
 endif()
 file(CONFIGURE OUTPUT "${OUTPUT}" CONTENT [=[
 #pragma once

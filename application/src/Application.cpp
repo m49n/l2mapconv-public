@@ -7,6 +7,7 @@
 #include "GeodataContext.h"
 #include "GeodataSystem.h"
 #include "LoadingSystem.h"
+#include "LiveVisualRenderer.h"
 #include "MapCatalog.h"
 #include "MapLoadingWorker.h"
 #include "MapSelectionContext.h"
@@ -86,6 +87,7 @@ auto Application::preview(const std::filesystem::path &client_root,
     GeodataContext geodata_context{};
 
     Renderer renderer{rendering_context, m_resource_root};
+    LiveVisualRenderer live_renderer{rendering_context.context};
     TerritoryRenderController territory_controller{running_executable_path(), make_territory_process()};
     TerritoryRenderViewState territory_view{{}, m_resource_root / "output" / "radar", {}};
 
@@ -96,14 +98,16 @@ auto Application::preview(const std::filesystem::path &client_root,
         map_selection,
         std::make_unique<MapLoadingWorker>(
             std::make_unique<UnrealMapSource>(client_root)),
-        std::make_unique<RendererMapSceneSink>(renderer, rendering_context),
+        std::make_unique<RendererMapSceneSink>(renderer, live_renderer,
+                                               rendering_context),
         seed_coordinate));
     systems.push(std::make_unique<UISystem>(ui_context, window_context,
                                             rendering_context, map_selection,
                                             client_session, &territory_controller,
                                             &territory_view));
     systems.push(std::make_unique<RenderingSystem>(rendering_context,
-                                                   window_context, ui_context));
+                                                   window_context, ui_context,
+                                                   live_renderer));
     systems.push(std::make_unique<GeodataSystem>(geodata_context, ui_context,
                                                  &renderer));
 

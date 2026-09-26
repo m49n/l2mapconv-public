@@ -1,5 +1,7 @@
 #pragma once
 
+#include "LiveSceneSettings.h"
+
 #include <functional>
 
 struct UIContext {
@@ -21,6 +23,8 @@ struct UIContext {
     bool bounding_boxes;
     bool imported_geodata;
     bool generated_geodata;
+    LiveSceneSettings live;
+    LiveSceneDiagnostics live_diagnostics;
 
     void set_defaults() {
       culling = true;

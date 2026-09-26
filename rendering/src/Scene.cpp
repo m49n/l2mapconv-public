@@ -43,7 +43,11 @@ void remove_tree_entries(Scene::Tree &tree, Predicate should_remove) {
 
 } // namespace
 
-auto Scene::create_group() -> SceneGroupId { return m_next_group++; }
+auto Scene::create_group() -> SceneGroupId {
+  const auto group = m_next_group++;
+  m_group_visibility.emplace(group, true);
+  return group;
+}
 
 void Scene::add(SceneGroupId group, const Entity &entity) {
   ASSERT(entity.mesh() != nullptr, "Rendering", "Entity must have mesh");
@@ -81,11 +85,21 @@ void Scene::remove(std::uint64_t surface_filter) {
 }
 
 void Scene::remove_group(SceneGroupId group) {
+  m_group_visibility.erase(group);
   remove_tree_entries(m_tree, [group](const SceneEntry &entry) {
     return entry.group == group;
   });
   m_entities.remove_if(
       [group](const EntityRecord &record) { return record.group == group; });
+}
+
+void Scene::set_group_visible(SceneGroupId group, bool visible) {
+  m_group_visibility.at(group) = visible;
+}
+
+auto Scene::group_visible(SceneGroupId group) const -> bool {
+  const auto found = m_group_visibility.find(group);
+  return found != m_group_visibility.end() && found->second;
 }
 
 auto Scene::group_size(SceneGroupId group) const -> std::size_t {

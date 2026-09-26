@@ -1,11 +1,13 @@
 #pragma once
 
-#include "Map.h"
+#include "MapLoadPayload.h"
 #include "MapCatalog.h"
 #include "MapLoadOptions.h"
+#include <territory/Job.h>
 
 class MapSource {
 public:
   virtual ~MapSource() = default;
-  virtual auto load(const MapRegion &region, MapLayer layer) -> Map = 0;
+  virtual auto load(const MapRegion &region, MapLayer layer,
+                    const territory::Cancel &cancel) -> MapLoadPayload = 0;
 };

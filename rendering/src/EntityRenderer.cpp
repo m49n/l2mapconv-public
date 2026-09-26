@@ -53,6 +53,9 @@ void EntityRenderer::render(const Scene &scene, const FrameSettings &settings,
 
           // Surfaces
           for (const auto &entry : mesh_branch.second) {
+            if (!scene.group_visible(entry.group)) {
+              continue;
+            }
             const auto *entity = entry.entity;
             const auto *surface = entry.surface;
             const auto &bounding_box = entity->bounding_box();

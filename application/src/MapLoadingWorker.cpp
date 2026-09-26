@@ -69,16 +69,23 @@ void MapLoadingWorker::run() {
       m_started.push_back(*request);
     }
 
-    MapLoadResult result{.request = *request, .map = {}, .error = {}};
+    MapLoadResult result{.request = *request, .payload = {}, .error = {}};
     try {
-      result.map = m_source->load(request->region, request->key.layer);
+      const auto cancel = [this, &request] {
+        std::lock_guard lock{m_mutex};
+        return m_stopping || !m_queue.is_current(*request);
+      };
+      result.payload = m_source->load(request->region, request->key.layer,
+                                      cancel);
     } catch (const std::exception &error) {
       result.error = error.what();
     }
 
     {
       std::lock_guard lock{m_mutex};
-      m_completed.push_back(std::move(result));
+      if (!m_stopping && m_queue.is_current(*request)) {
+        m_completed.push_back(std::move(result));
+      }
     }
   }
 }

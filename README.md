@@ -10,7 +10,7 @@ Lineage II map previewer and geodata builder.
 - Supported geodata generation clients: C1, HF.
 - Supported geodata export formats: L2J and PTS (`XX_YY_conv.dat`).
 - Experimental map preview: Essence P542, verified with Samurai Crow EU maps,
-  including dynamic streaming around `22_22`.
+  including dynamic streaming and live materials around `22_22` and `23_18`.
 
 ## Features
 
@@ -18,6 +18,8 @@ Lineage II map previewer and geodata builder.
 - Collisionless six-axis free camera with geometry filters.
 - Manual terrain selection plus automatic full-detail streaming for the current
   map and, optionally, its immediate neighbours.
+- Live P542 detail with supported textures, water surfaces and adjustable
+  geometry-based shadows; radar/PNG export has separate controls.
 - L2J and PTS geodata building from the same generated map data.
 
 ## Usage
@@ -61,7 +63,7 @@ l2mapconv.exe --preview/build --client-root <path> -- [maps...]
 
 ## P542 map preview
 
-The interactive geometry preview has been verified locally with `22_22` from the
+The interactive material preview has been verified locally with `22_22` from the
 Lineage II Essence Samurai Crow EU P542 client:
 
 ```powershell
@@ -86,6 +88,10 @@ Controls:
   enables or disables the surrounding 3x3 detail neighbourhood. It also shows
   world coordinates, camera speed, mouse sensitivity, and independent
   visibility switches for terrain, static meshes, CSG, and Blocking Volumes.
+  Its **Live Scene** section toggles water and textures without reloading a
+  square. Shadows are off by default; enable them to use a 2048-pixel depth
+  map and adjust sun direction (0–360°) and elevation (15–80°). The defaults
+  are 315° and 40°. Draws, shadow-map size and live errors are shown there.
 - The Maps summary reports manual selections, terrain/detail residents, and
   queued/loading/failed work while the background loader keeps the viewer
   responsive.
@@ -93,15 +99,27 @@ Controls:
 For a first whole-world pass, press `Select All` in the main application and
 leave automatic current-map loading enabled. All
 selected maps are then kept as terrain-only geometry while the current map (and
-the optional `+1` ring) retains full detail. The ready package uses geometry-only
-interactive preview; radar export still loads supported textures and water.
+the optional `+1` ring) retains full detail. Selected terrain-only squares stay
+on the fast colored path. A loaded Detail square replaces only its own terrain
+draw with the verified P542 material scene. If Detail fails, the resident
+terrain remains visible and the Maps cell reports `!`; reselect it to retry.
+
+The live Textures switch changes RGB but retains supported opacity/cutouts and
+terrain masks. Water appears only where the client provides a supported water
+surface; a WaterVolume alone is not drawable. Unsupported texture uploads and
+materials beyond the GPU sampler limit use neutral fallbacks; unreliable
+coverage is omitted from shadow casting.
+The preview does not reproduce retail lightmaps, fog or animated materials.
+Full-square views with thousands of static meshes can be slow, especially with
+shadows and the `+1` detail ring; turn off Shadows or the ring if needed.
+**Territory Render** settings affect only PNG export, not the live scene.
 
 Preview treats the client as read-only input. Debug logging does not dump
 decrypted packages, and automatic ImGui settings persistence is disabled so
-the current working directory is not modified. The log reports actor, vertex,
-and triangle counts for terrain, static meshes, CSG, and Blocking Volumes.
-Experimental developer builds with legacy preview textures log unsupported or
-missing P542 texture references and fall back to surface colors.
+the current working directory is not modified. Maps reports streaming
+residency, while Rendering reports live draw and material-fallback counts.
+The old `L2MAPCONV_LOAD_TEXTURES` option still controls only the experimental
+legacy geometry path; the new live Detail material pipeline works with it off.
 
 The Geodata `Reset` and `Build` buttons are disabled in streamed preview mode:
 the visible scene may contain terrain-only regions and is not a complete
@@ -123,9 +141,7 @@ represented by the output format. Complex/multilayer heights must fit
 `[-16384, 16376]` after quantization; flat blocks retain raw signed 16-bit
 heights. A failed region export publishes neither file, and `--build` reports
 the error with a nonzero exit code. Earlier completed regions remain intact.
-Interactive preview does not yet use the territory exporter's material pipeline.
-Unifying the package does not change preview quality. Neither path claims exact
-retail shader parity.
+Neither the live nor exported renderer claims exact retail shader parity.
 
 ## Territory / radar rendering (Windows 10+)
 
@@ -133,7 +149,7 @@ The ready build is `dist/l2mapconv.exe`, the same executable as the viewer and
 geodata builder. Keep its
 installed resource directory alongside the executable. No installation into
 the Lineage II client is needed. Territory rendering works even when the
-interactive viewer was built with `L2MAPCONV_LOAD_TEXTURES=OFF`.
+legacy texture option `L2MAPCONV_LOAD_TEXTURES=OFF`.
 
 In the viewer, mark squares in **Maps**, then use **Territory Render**:
 

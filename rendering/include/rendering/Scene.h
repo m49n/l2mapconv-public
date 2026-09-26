@@ -40,6 +40,8 @@ public:
   void add(SceneGroupId group, const Entity &entity);
   void remove(std::uint64_t surface_filter);
   void remove_group(SceneGroupId group);
+  void set_group_visible(SceneGroupId group, bool visible);
+  auto group_visible(SceneGroupId group) const -> bool;
 
   auto group_size(SceneGroupId group) const -> std::size_t;
   auto tree_entity_count() const -> std::size_t;
@@ -55,6 +57,7 @@ private:
   std::forward_list<EntityRecord> m_entities;
   Tree m_tree;
   SceneGroupId m_next_group{1};
+  std::map<SceneGroupId, bool> m_group_visibility;
 };
 
 } // namespace rendering

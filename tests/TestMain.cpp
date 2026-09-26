@@ -19,6 +19,8 @@
 static_assert(std::is_same_v<decltype(choose_client_root_folder()),
                              std::optional<std::filesystem::path>>);
 
+int run_live_scene_settings_tests();
+
 namespace {
 
 auto near(const glm::vec3 &actual, const glm::vec3 &expected,
@@ -65,6 +67,7 @@ auto main(int argc, char **argv) -> int {
   failures += run_map_residency_tests();
   failures += run_map_load_options_tests();
   failures += run_scene_group_tests();
+  failures += run_live_scene_settings_tests();
   failures += run_map_selection_tests();
   failures += run_map_loading_tests();
   failures += run_map_streaming_tests();

@@ -44,6 +44,7 @@ struct BlockingSourceState {
   std::condition_variable changed;
   int calls{};
   int released_through{};
+  std::atomic_int cancelled_calls{};
 };
 
 class BlockingMapSource final : public MapSource {
@@ -51,7 +52,8 @@ public:
   explicit BlockingMapSource(std::shared_ptr<BlockingSourceState> state)
       : m_state{std::move(state)} {}
 
-  auto load(const MapRegion &map_region, MapLayer) -> Map override {
+  auto load(const MapRegion &map_region, MapLayer,
+            const territory::Cancel &cancel) -> MapLoadPayload override {
     std::unique_lock lock{m_state->mutex};
     const auto call = ++m_state->calls;
     m_state->changed.notify_all();
@@ -61,7 +63,10 @@ public:
 
     Map map;
     map.name = map_region.name;
-    return map;
+    if (cancel()) {
+      ++m_state->cancelled_calls;
+    }
+    return {std::move(map), {}};
   }
 
 private:
@@ -145,11 +150,11 @@ auto run_map_loading_tests() -> int {
       const auto second_started = state->wait_for_calls(2);
       failures +=
           expect(second_started, "worker starts the superseding request");
+      failures += expect(state->cancelled_calls == 1,
+                         "worker forwards cancellation to active source load");
       const auto completed = worker.take_completed();
-      failures += expect(completed.size() == 1 &&
-                             completed.front().request.generation == 1 &&
-                             !worker.is_current(completed.front().request),
-                         "completed stale result is reported but rejected");
+      failures += expect(completed.empty(),
+                         "cancelled stale CPU payload is not published");
       const auto started = worker.take_started();
       failures +=
           expect(started.size() == 2,

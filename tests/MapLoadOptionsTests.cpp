@@ -28,6 +28,9 @@ auto run_map_load_options_tests() -> int {
   failures += expect(MapLoadOptions::detail_only() ==
                          MapLoadOptions{false, true, true, true},
                      "detail preset excludes terrain");
+  failures += expect(MapLoadOptions::blocking_only() ==
+                         MapLoadOptions{false, false, false, true},
+                     "live detail keeps only legacy blocking-volume overlays");
   failures += expect(MapLoadOptions::full() ==
                          MapLoadOptions{true, true, true, true},
                      "full preset preserves eager build behavior");

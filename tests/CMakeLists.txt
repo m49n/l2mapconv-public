@@ -4,6 +4,7 @@ add_executable(l2mapconv_tests
     MapResidencyTests.cpp
     MapLoadOptionsTests.cpp
     SceneGroupTests.cpp
+    LiveSceneSettingsTests.cpp
     MapSelectionTests.cpp
     MapLoadingTests.cpp
     MapStreamingTests.cpp
@@ -41,7 +42,7 @@ target_include_directories(l2mapconv_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/geodata/src
 )
 target_link_libraries(l2mapconv_tests PRIVATE
-    geodata geometry unreal rendering utils
+    geodata geometry unreal rendering territory utils
     glfw libglew_static glm imgui cxxopts Recast
 )
 
@@ -53,6 +54,17 @@ if(L2MAPCONV_LOAD_TERRAIN)
 endif()
 
 add_test(NAME l2mapconv_tests COMMAND l2mapconv_tests)
+
+add_executable(live_visual_tests LiveVisualRendererTests.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/LiveVisualRenderer.cpp
+    ${CMAKE_SOURCE_DIR}/application/src/LiveVisualShaders.cpp)
+target_include_directories(live_visual_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/application/src)
+target_link_libraries(live_visual_tests PRIVATE
+    territory rendering geometry unreal utils glfw libglew_static glm)
+set_target_properties(live_visual_tests PROPERTIES ${TARGET_PROPERTIES})
+target_compile_options(live_visual_tests PRIVATE ${TARGET_COMPILE_OPTIONS})
+add_test(NAME live_visual_tests COMMAND live_visual_tests)
 
 add_executable(window_system_tests WindowSystemTests.cpp
     ${CMAKE_SOURCE_DIR}/application/src/WindowSystem.cpp)

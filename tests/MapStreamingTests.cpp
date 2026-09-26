@@ -1,4 +1,5 @@
 #include "MapSceneSink.h"
+#include "MapLoadPayload.h"
 #include "MapStreamingSystem.h"
 #include "TestSupport.h"
 
@@ -8,6 +9,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -64,7 +66,11 @@ public:
       }
       started.push_back(request);
       if (auto_complete) {
-        completed.push_back({request, loaded_map(request.key.coordinate), {}});
+        auto payload = MapLoadPayload{loaded_map(request.key.coordinate), {}};
+        if (request.key.layer == MapLayer::Detail) {
+          payload.visual = std::make_shared<territory::VisualScene>();
+        }
+        completed.push_back({request, std::move(payload), {}});
       }
     }
   }
@@ -87,7 +93,10 @@ public:
   }
 
   void inject(MapLoadRequest request) {
-    completed.push_back({request, loaded_map(request.key.coordinate), {}});
+    completed.push_back({request,
+                         MapLoadPayload{loaded_map(request.key.coordinate),
+                                        std::make_shared<territory::VisualScene>()},
+                         {}});
   }
 
   void inject_failure(MapLoadRequest request, std::string error) {
@@ -106,10 +115,18 @@ private:
 
 class FakeMapSceneSink final : public MapSceneSink {
 public:
-  auto upload(MapCoordinate coordinate, MapLayer layer, const Map &)
+  auto upload(MapCoordinate coordinate, MapLayer layer,
+              const MapLoadPayload &payload)
       -> rendering::SceneGroupId override {
+    if (throw_on_detail && layer == MapLayer::Detail) {
+      throw std::runtime_error{"fixture upload failure"};
+    }
+    if (layer == MapLayer::Detail && !payload.visual) {
+      throw std::runtime_error{"detail has no visual payload"};
+    }
     const auto group = next_group++;
     groups.insert_or_assign(group, MapLoadKey{coordinate, layer});
+    visible.insert_or_assign(group, true);
     uploads.push_back({coordinate, layer});
     return group;
   }
@@ -119,7 +136,21 @@ public:
     if (found != groups.end()) {
       removed.push_back(found->second);
       groups.erase(found);
+      visible.erase(group);
     }
+  }
+
+  void set_visible(rendering::SceneGroupId group, bool show) override {
+    visible.at(group) = show;
+  }
+
+  auto layer_visible(MapCoordinate coordinate, MapLayer layer) const -> bool {
+    for (const auto &[group, key] : groups) {
+      if (key == MapLoadKey{coordinate, layer}) {
+        return visible.at(group);
+      }
+    }
+    return false;
   }
 
   auto camera_xy() const -> glm::vec2 override { return camera; }
@@ -140,11 +171,13 @@ public:
   }
 
   std::size_t upload_count() const { return uploads.size(); }
+  bool throw_on_detail{};
 
 private:
   glm::vec2 camera{};
   rendering::SceneGroupId next_group{1};
   std::map<rendering::SceneGroupId, MapLoadKey> groups;
+  std::map<rendering::SceneGroupId, bool> visible;
   std::vector<MapLoadKey> uploads;
   std::vector<MapLoadKey> removed;
 };
@@ -171,6 +204,9 @@ auto run_map_streaming_tests() -> int {
   auto resident = streaming.resident();
   failures += expect(resident.detail == Coordinates{{22, 22}},
                      "current-only startup loads one detail map");
+  failures += expect(!sink_view->layer_visible({22, 22}, MapLayer::Terrain) &&
+                         sink_view->layer_visible({22, 22}, MapLayer::Detail),
+                     "resident detail hides only its own terrain fallback");
 
   sink_view->set_region({23, 22});
   streaming.tick();
@@ -180,6 +216,8 @@ auto run_map_streaming_tests() -> int {
                      "old automatic detail unloads after crossing");
   failures += expect(resident.terrain.contains({22, 22}),
                      "manual terrain survives detail downgrade");
+  failures += expect(sink_view->layer_visible({22, 22}, MapLayer::Terrain),
+                     "removing detail restores retained terrain fallback");
   failures += expect(resident.detail.contains({23, 22}),
                      "new current detail becomes resident");
 
@@ -308,6 +346,22 @@ auto run_map_streaming_tests() -> int {
                    retried->generation > failed_generation,
                "reselecting a failed automatic map queues a fresh generation");
   }
+
+  MapSelectionContext upload_selection{MapCatalog::discover(fixture.root)};
+  upload_selection.set_manual({22, 22}, true);
+  auto upload_service = std::make_unique<ImmediateMapLoadService>();
+  auto upload_sink = std::make_unique<FakeMapSceneSink>();
+  auto *upload_sink_view = upload_sink.get();
+  upload_sink_view->throw_on_detail = true;
+  MapStreamingSystem upload_streaming{upload_selection, std::move(upload_service),
+                                      std::move(upload_sink), {22, 22}};
+  upload_streaming.tick();
+  upload_streaming.tick();
+  upload_streaming.tick();
+  failures += expect(upload_selection.status({22, 22}, MapLayer::Detail) ==
+                         MapResidencyStatus::Failed &&
+                         upload_sink_view->layer_visible({22, 22}, MapLayer::Terrain),
+                     "failed detail GPU upload leaves terrain visible and reports failure");
 
   return failures;
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Map.h"
+#include "MapLoadPayload.h"
 #include "MapCatalog.h"
 #include "MapLoadOptions.h"
 
@@ -34,7 +34,7 @@ struct MapLoadRequest {
 
 struct MapLoadResult {
   MapLoadRequest request;
-  std::optional<Map> map;
+  std::optional<MapLoadPayload> payload;
   std::string error;
 };
 

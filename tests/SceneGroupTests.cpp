@@ -58,11 +58,20 @@ auto run_scene_group_tests() -> int {
 
   scene.add(first, first_entity);
   scene.add(second, second_entity);
+  scene.set_group_visible(first, false);
+  failures += expect(!scene.group_visible(first) && scene.group_visible(second) &&
+                         scene.group_size(first) == 1,
+                     "hiding one map keeps its entities resident and leaves neighbors visible");
+  scene.set_group_visible(first, true);
+  failures += expect(scene.group_visible(first),
+                     "hidden map can be restored without reupload");
   failures +=
       expect(scene.group_size(first) == 1 && scene.group_size(second) == 1,
              "scene tracks entities by group");
 
   scene.remove_group(first);
+  failures += expect(!scene.group_visible(first),
+                     "removal clears map visibility state");
   failures +=
       expect(scene.group_size(first) == 0 && scene.group_size(second) == 1,
              "removing one map leaves another map intact");

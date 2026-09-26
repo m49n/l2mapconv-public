@@ -6,9 +6,11 @@
 
 RenderingSystem::RenderingSystem(RenderingContext &rendering_context,
                                  WindowContext &window_context,
-                                 UIContext &ui_context)
+                                 UIContext &ui_context,
+                                 LiveVisualRenderer &live_renderer)
     : m_rendering_context{rendering_context}, m_window_context{window_context},
-      m_ui_context{ui_context}, m_entity_renderer{rendering::EntityRenderer{
+      m_ui_context{ui_context}, m_live_renderer{live_renderer},
+      m_entity_renderer{rendering::EntityRenderer{
                                     m_rendering_context.context,
                                     m_rendering_context.camera}} {
 
@@ -62,8 +64,38 @@ void RenderingSystem::frame_end(Timestep /*frame_time*/) {
   settings.surface_textures |= SURFACE_GENERATED_GEODATA;
 
   m_ui_context.rendering.draws = 0;
-
-  m_entity_renderer.render(m_rendering_context.scene, settings,
+  const auto overlay_filter = SURFACE_IMPORTED_GEODATA |
+                              SURFACE_GENERATED_GEODATA;
+  auto scene_settings = settings;
+  scene_settings.surface_filter &= ~overlay_filter;
+  m_entity_renderer.render(m_rendering_context.scene, scene_settings,
+                           m_ui_context.rendering.draws);
+  try {
+    const auto previous_error = m_ui_context.rendering.live_diagnostics.error;
+    m_ui_context.rendering.live.culling = m_ui_context.rendering.culling;
+    m_ui_context.rendering.live.wireframe = m_ui_context.rendering.wireframe;
+    m_ui_context.rendering.live.terrain = m_ui_context.rendering.terrain;
+    m_ui_context.rendering.live.static_meshes =
+        m_ui_context.rendering.static_meshes;
+    m_ui_context.rendering.live.csg = m_ui_context.rendering.csg;
+    m_live_renderer.render(m_rendering_context.camera,
+                           m_ui_context.rendering.live,
+                           m_ui_context.rendering.live_diagnostics);
+    apply_live_shadow_error(m_ui_context.rendering.live,
+                            m_ui_context.rendering.live_diagnostics);
+    if (m_ui_context.rendering.live_diagnostics.error.empty() &&
+        !m_ui_context.rendering.live.shadows)
+      m_ui_context.rendering.live_diagnostics.error = previous_error;
+    m_ui_context.rendering.draws +=
+        m_ui_context.rendering.live_diagnostics.draws;
+  } catch (const std::exception &error) {
+    m_ui_context.rendering.live_diagnostics.error = error.what();
+    apply_live_shadow_error(m_ui_context.rendering.live,
+                            m_ui_context.rendering.live_diagnostics);
+  }
+  auto overlay_settings = settings;
+  overlay_settings.surface_filter &= overlay_filter;
+  m_entity_renderer.render(m_rendering_context.scene, overlay_settings,
                            m_ui_context.rendering.draws);
 }
 

@@ -19,6 +19,10 @@ struct MapLoadOptions {
     return {false, true, true, true};
   }
 
+  static constexpr auto blocking_only() -> MapLoadOptions {
+    return {false, false, false, true};
+  }
+
   static constexpr auto full() -> MapLoadOptions {
     return {true, true, true, true};
   }

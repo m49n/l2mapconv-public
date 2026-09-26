@@ -52,6 +52,7 @@ void draw_territory_render_window(TerritoryRenderViewState &view,
     }
     ImGui::EndCombo();
   }
+  ImGui::TextWrapped("These options affect PNG export only, not the live 3D scene.");
   ImGui::Checkbox("Water (supported surfaces)", &view.settings.water);
   ImGui::Checkbox("Textures", &view.settings.textures);
   ImGui::Separator();

@@ -182,8 +182,38 @@ void UISystem::rendering_window(Timestep frame_time) const {
   ImGui::TextUnformatted(
       "RMB look | WASD move | Space/Ctrl vertical | Shift fast | Alt slow | "
       "M wireframe");
+  ImGui::Separator();
+  ImGui::TextUnformatted("Live Scene (3D flight)");
+  auto &live = m_ui_context.rendering.live;
+  const auto &live_status = m_ui_context.rendering.live_diagnostics;
+  ImGui::Checkbox("Water##live", &live.water);
+  ImGui::Checkbox("Textures##live", &live.textures);
+  ImGui::Checkbox("Shadows##live", &live.shadows);
+  ImGui::BeginDisabled(!live.shadows);
+  ImGui::SliderFloat("Sun direction##live", &live.sun_azimuth_deg, 0.f,
+                     360.f, "%.0f deg");
+  ImGui::SliderFloat("Sun elevation##live", &live.sun_elevation_deg, 15.f,
+                     80.f, "%.0f deg");
+  ImGui::EndDisabled();
+  ImGui::Text("Live draws: %d | Shadow map: %d px",
+              live_status.draws, live_status.shadow_map_size);
+  if (live_status.omitted_casters)
+    ImGui::Text("Unreliable shadow casters omitted: %d",
+                live_status.omitted_casters);
+  if (live_status.fallback_textures)
+    ImGui::Text("Neutral texture fallbacks: %d",
+                live_status.fallback_textures);
+  if (live_status.fallback_materials)
+    ImGui::Text("Neutral material fallbacks: %d",
+                live_status.fallback_materials);
+  if (!live_status.error.empty())
+    ImGui::TextWrapped("Live scene error: %s", live_status.error.c_str());
+  ImGui::TextWrapped("Water appears only where a supported water surface is "
+                     "present; a WaterVolume alone is not drawable.");
+  ImGui::Separator();
+  ImGui::TextUnformatted("Geometry and overlays");
 #ifdef LOAD_TEXTURES
-  ImGui::Checkbox("Textures", &m_ui_context.rendering.textures);
+  ImGui::Checkbox("Legacy textures", &m_ui_context.rendering.textures);
 #endif
   ImGui::Checkbox("Culling", &m_ui_context.rendering.culling);
   ImGui::Checkbox("Wireframe", &m_ui_context.rendering.wireframe);

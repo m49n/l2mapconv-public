@@ -1,7 +1,7 @@
 execute_process(COMMAND "${APP}" --version
     RESULT_VARIABLE code OUTPUT_VARIABLE version ERROR_VARIABLE diagnostic TIMEOUT 10)
 if(NOT "${code}" STREQUAL "0" OR
-   NOT version MATCHES "^l2mapconv P542 preview \\(git ([0-9a-f]+(-dirty)?|unknown); (geometry preview|legacy textured preview)\\)")
+   NOT version MATCHES "^l2mapconv P542 preview \\(git ([0-9a-f]+(-dirty)?|unknown); (live material preview|live \\+ legacy textured preview)\\)")
     message(FATAL_ERROR "Build identity unavailable without a client: ${code}: ${version} ${diagnostic}")
 endif()
 execute_process(COMMAND "${APP}" --help
