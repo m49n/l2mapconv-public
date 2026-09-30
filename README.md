@@ -1,4 +1,4 @@
-# l2mapconv
+# l2mapconv-public
 
 <p align="center">
     <img src="assets/cruma.png" width="400">
@@ -297,7 +297,7 @@ The install command alone does **not** rebuild or test the application.
 ### macOS/Linux
 
 ```sh
-git clone --recurse-submodules -j8 git@github.com:madyanov/l2mapconv-public.git
+git clone --recurse-submodules -j8 git@github.com:m49n/l2mapconv-public.git
 cd l2mapconv-public
 CC=clang CXX=clang++ cmake -S . -B build -G Ninja -D CMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
