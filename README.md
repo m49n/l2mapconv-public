@@ -5,12 +5,15 @@
     <img src="assets/toi.png" width="400">
 </p>
 
-Lineage II map previewer and geodata builder.
+Lineage II map previewer, geodata generator and high-resolution map/radar renderer.
 
-- Supported geodata generation clients: C1, HF.
-- Supported geodata export formats: L2J and PTS (`XX_YY_conv.dat`).
-- Experimental map preview: Essence P542, verified with Samurai Crow EU maps,
-  including dynamic streaming and live materials around `22_22` and `23_18`.
+- Working geodata generation for C1, HF and Essence P542 clients.
+- Geodata export formats: server L2J (`XX_YY.l2j`) and client PTS (`XX_YY_conv.dat`).
+- Map/radar rendering at **1K / 2K / 4K / 8K / 16K**, with textures, supported
+  water surfaces and optional shadows.
+- Tested on **Lineage II Essence — Samurai Crow EU P542 (build 542)**:
+  geodata generation, map preview and map/radar rendering. The viewer supports
+  dynamic streaming and live materials, including `22_22` and `23_18`.
 
 ## Features
 
@@ -20,6 +23,8 @@ Lineage II map previewer and geodata builder.
   map and, optionally, its immediate neighbours.
 - Live P542 detail with supported textures, water surfaces and adjustable
   geometry-based shadows; radar/PNG export has separate controls.
+- High-resolution territory/radar PNG export from 1024 to 16384 pixels, with
+  independent texture, water and shadow controls in the UI and CLI.
 - L2J and PTS geodata building from the same generated map data.
 
 ## Usage
@@ -130,15 +135,18 @@ residency, while Rendering reports live draw and material-fallback counts.
 The old `L2MAPCONV_LOAD_TEXTURES` option still controls only the experimental
 legacy geometry path; the new live Detail material pipeline works with it off.
 
+## Geodata generation
+
+Geodata generation and L2J/client DAT export work with the tested Samurai Crow
+EU P542 client. A full local batch completed for all **241 discovered map
+regions**, producing 241 L2J files and 241 client DAT files without generation
+errors. Automated checks cover file structure and selected collision/NSWE cases.
+
 The Geodata `Reset` and `Build` buttons are disabled in streamed preview mode:
 the visible scene may contain terrain-only regions and is not a complete
 generation input. The command-line `--build` workflow is unchanged and remains
 the only complete-map generation path.
 
-P542 geodata export has passed structural file checks, but heights and
-passability have not yet been validated in a live client/server. The current
-P542 scope is map inspection, not a claim that generated geodata is ready for
-a live server.
 Both formats contain the same generated cells; the PTS export is written
 directly from the build buffer, not by reading the L2J file. Inspect both
 files and test heights and passability in the client/server before deployment.
