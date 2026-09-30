@@ -78,6 +78,7 @@ void RenderingSystem::frame_end(Timestep /*frame_time*/) {
     m_ui_context.rendering.live.static_meshes =
         m_ui_context.rendering.static_meshes;
     m_ui_context.rendering.live.csg = m_ui_context.rendering.csg;
+    m_ui_context.rendering.live.passable = m_ui_context.rendering.passable;
     m_live_renderer.render(m_rendering_context.camera,
                            m_ui_context.rendering.live,
                            m_ui_context.rendering.live_diagnostics);

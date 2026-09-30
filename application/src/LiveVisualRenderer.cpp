@@ -242,7 +242,7 @@ struct Item {
   glm::mat4 model{1}, world_to_uv{1};
   glm::mat3 normal_matrix{1};
   glm::vec3 flat{.62f};
-  bool terrain{}, layer{}, csg{}, water{}, mirrored{};
+  bool terrain{}, layer{}, csg{}, water{}, mirrored{}, passable{};
   std::size_t mask_texture{};
   geometry::Box bounds;
 };
@@ -356,6 +356,9 @@ struct ShadowResources {
 
 namespace {
 auto visible(const LiveSceneSettings &settings, const Item &item) -> bool {
+  if (!settings.textures && item.layer) return false;
+  if (!settings.textures && item.passable && !item.water && !settings.passable)
+    return false;
   if (item.terrain) return settings.terrain;
   return item.csg ? settings.csg : settings.static_meshes;
 }
@@ -487,6 +490,7 @@ void LiveVisualRenderer::upload(rendering::SceneGroupId group_id,
     item.layer = layer;
     item.csg = !terrain && draw.source.find(".BSP:") != std::string::npos;
     item.water = draw.water;
+    item.passable = draw.passable;
     item.mirrored = glm::determinant(glm::mat3(draw.transform)) < 0;
     item.mask_texture = mask;
     item.bounds = geometry::Box{mesh_bounds.at(draw.mesh), draw.transform};
@@ -512,7 +516,7 @@ void LiveVisualRenderer::upload(rendering::SceneGroupId group_id,
                                 scene.meshes[*scene.terrain_mesh].indices.size(),
                                 glm::mat4{1}, false, "terrain"};
     group->base.push_back(prepare(base, neutral_id, true, false, 0,
-                                   glm::mat4{1}, {.35f, .35f, .35f}, false));
+                                   glm::mat4{1}, {.85f, .85f, .85f}, false));
     for (const auto &layer : scene.terrain_layers) {
       auto item = prepare(base, layer.material, true, true,
                           layer.mask_texture, layer.world_to_uv,
@@ -551,9 +555,13 @@ void LiveVisualRenderer::upload(rendering::SceneGroupId group_id,
       geometric_normals = true;
       ++group->singular_recovered;
     }
+    const auto flat = draw.water ? glm::vec3{.28f, .38f, .47f}
+                      : draw.source.find(".BSP:") != std::string::npos
+                          ? glm::vec3{1.f, 1.f, .7f}
+                      : draw.passable ? glm::vec3{.7f, 1.f, .7f}
+                                      : glm::vec3{1.f, .6f, .6f};
     auto item = prepare(effective, draw.material, false, false, 0, glm::mat4{1},
-                        draw.water ? glm::vec3{.28f, .38f, .47f}
-                                   : glm::vec3{.62f}, geometric_normals);
+                        flat, geometric_normals);
     (transparent(material.blend) ? group->alpha : group->opaque)
         .push_back(std::move(item));
   }
@@ -778,23 +786,30 @@ void LiveVisualRenderer::render(const rendering::Camera &camera,
         glBindTexture(GL_TEXTURE_2D, group.textures.at(item.mask_texture)->id);
         glUniform1i(u.terrain_mask, unit);
       }
-      if (material.depth_test || item.terrain) glEnable(GL_DEPTH_TEST);
-      else glDisable(GL_DEPTH_TEST);
+      if (!settings.textures || material.depth_test || item.terrain)
+        glEnable(GL_DEPTH_TEST);
+      else
+        glDisable(GL_DEPTH_TEST);
       glDepthFunc(item.layer ? GL_LEQUAL : GL_LESS);
-      glDepthMask(item.layer ? GL_FALSE : GLboolean(material.depth_write));
+      glDepthMask(item.layer ? GL_FALSE
+                            : GLboolean(!settings.textures || material.depth_write));
       last_group = &group;
       last_material = item.material;
       last_layer = item.layer;
       last_terrain = item.terrain;
       last_mask = item.mask_texture;
     }
-    glFrontFace(item.mirrored ? GL_CW : GL_CCW);
-    if (material.two_sided || item.terrain) glDisable(GL_CULL_FACE);
+    // The flight camera uses the legacy left-handed projection, reversing
+    // screen-space winding. Shadow projection is right-handed and keeps its
+    // independent CCW setup above.
+    glFrontFace(item.mirrored ? GL_CCW : GL_CW);
+    if (!settings.textures || !settings.culling || material.two_sided || item.terrain)
+      glDisable(GL_CULL_FACE);
     else {
       glEnable(GL_CULL_FACE);
       glCullFace(GL_BACK);
     }
-    if (item.layer || transparent(material.blend)) {
+    if (settings.textures && (item.layer || transparent(material.blend))) {
       glEnable(GL_BLEND);
       glBlendEquation(GL_FUNC_ADD);
       if (item.layer || material.blend == territory::Blend::Alpha)

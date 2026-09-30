@@ -55,7 +55,7 @@ endif()
 
 add_test(NAME l2mapconv_tests COMMAND l2mapconv_tests)
 
-add_executable(live_visual_tests LiveVisualRendererTests.cpp
+add_executable(live_visual_tests LiveVisualRendererTests.cpp LiveClientCapture.cpp
     ${CMAKE_SOURCE_DIR}/application/src/LiveVisualRenderer.cpp
     ${CMAKE_SOURCE_DIR}/application/src/LiveVisualShaders.cpp)
 target_include_directories(live_visual_tests PRIVATE

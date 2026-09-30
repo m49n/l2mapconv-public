@@ -89,7 +89,8 @@ Controls:
   world coordinates, camera speed, mouse sensitivity, and independent
   visibility switches for terrain, static meshes, CSG, and Blocking Volumes.
   Its **Live Scene** section toggles water and textures without reloading a
-  square. Shadows are off by default; enable them to use a 2048-pixel depth
+  square. Water, textures and shadows are all off by default, preserving the
+  colored geometry preview. Enable Shadows to use a 2048-pixel depth
   map and adjust sun direction (0–360°) and elevation (15–80°). The defaults
   are 315° and 40°. Draws, shadow-map size and live errors are shown there.
 - The Maps summary reports manual selections, terrain/detail residents, and
@@ -104,8 +105,16 @@ on the fast colored path. A loaded Detail square replaces only its own terrain
 draw with the verified P542 material scene. If Detail fails, the resident
 terrain remains visible and the Maps cell reports `!`; reselect it to retry.
 
-The live Textures switch changes RGB but retains supported opacity/cutouts and
-terrain masks. Water appears only where the client provides a supported water
+With live Textures off, geometry is opaque and uses the original categories:
+red colliding meshes, green passable meshes, yellow CSG and gray terrain.
+The Passable switch controls noncolliding surfaces in this geometry mode;
+textured mode displays visual surfaces regardless of collision classification.
+With Textures on, supported opacity/cutouts and terrain masks are applied.
+Culling controls both frustum rejection and material back-face culling in
+textured mode; disabling it allows inspecting walls from either side.
+Sun direction and elevation control both lighting and shadow projection while
+Shadows is enabled; otherwise the sliders are disabled.
+Water appears only where the client provides a supported water
 surface; a WaterVolume alone is not drawable. Unsupported texture uploads and
 materials beyond the GPU sampler limit use neutral fallbacks; unreliable
 coverage is omitted from shadow casting.

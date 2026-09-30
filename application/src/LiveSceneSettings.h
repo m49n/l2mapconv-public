@@ -3,14 +3,15 @@
 #include <string>
 
 struct LiveSceneSettings {
-  bool water{true};
-  bool textures{true};
+  bool water{false};
+  bool textures{false};
   bool shadows{false};
   bool culling{true};
   bool wireframe{false};
   bool terrain{true};
   bool static_meshes{true};
   bool csg{true};
+  bool passable{false};
   float sun_azimuth_deg{315.f};
   float sun_elevation_deg{40.f};
 };

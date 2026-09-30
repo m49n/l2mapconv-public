@@ -195,6 +195,8 @@ void UISystem::rendering_window(Timestep frame_time) const {
   ImGui::SliderFloat("Sun elevation##live", &live.sun_elevation_deg, 15.f,
                      80.f, "%.0f deg");
   ImGui::EndDisabled();
+  if (!live.shadows)
+    ImGui::TextDisabled("Enable Shadows to adjust sunlight.");
   ImGui::Text("Live draws: %d | Shadow map: %d px",
               live_status.draws, live_status.shadow_map_size);
   if (live_status.omitted_casters)

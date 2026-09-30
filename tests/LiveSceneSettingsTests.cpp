@@ -6,10 +6,10 @@ auto run_live_scene_settings_tests() -> int {
   int failures{};
   LiveSceneSettings live;
   TerritoryRenderViewState export_view{};
-  failures += expect(live.water && live.textures && !live.shadows &&
+  failures += expect(!live.water && !live.textures && !live.shadows &&
                          live.sun_azimuth_deg == 315.f &&
                          live.sun_elevation_deg == 40.f,
-                     "live defaults enable materials and water but not shadows");
+                     "live startup keeps the geometry preview without optional effects");
   live.water = false;
   live.textures = false;
   live.shadows = true;

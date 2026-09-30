@@ -1,5 +1,6 @@
 #include "LiveSceneSettings.h"
 #include "LiveVisualRenderer.h"
+#include "LiveClientCapture.h"
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -20,13 +21,13 @@ namespace {
 
 struct HiddenWindow {
   GLFWwindow *window{};
-  HiddenWindow() {
+  HiddenWindow(int width = 128, int height = 128) {
     if (!glfwInit()) throw std::runtime_error{"GLFW initialization failed"};
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    window = glfwCreateWindow(128, 128, "Live visual tests", nullptr, nullptr);
+    window = glfwCreateWindow(width, height, "Live visual tests", nullptr, nullptr);
     if (!window) throw std::runtime_error{"Hidden OpenGL window unavailable"};
     glfwMakeContextCurrent(window);
     glewExperimental = GL_TRUE;
@@ -147,8 +148,10 @@ auto check(bool pass, const char *name) -> int {
 
 int main(int argc, char **argv) {
   try {
-    HiddenWindow window;
+    const bool capture = argc > 1 && std::string_view{argv[1]} == "--capture-client";
+    HiddenWindow window{capture ? 1024 : 128, capture ? 768 : 128};
     rendering::Context context{};
+    if (capture) return capture_live_client(context, argc, argv);
     context.framebuffer.size = {128, 128};
     if (argc == 4 && std::string_view{argv[1]} == "--client-smoke") {
       territory::VisualSceneLoader loader{std::filesystem::path{argv[2]}};
@@ -170,6 +173,7 @@ int main(int argc, char **argv) {
                             {center_x, center_y, static_cast<float>(scene.bounds.max_z + 8192)}};
       fly.rotate(glm::radians(-90.f), {1, 0, 0});
       LiveSceneSettings settings;
+      settings.textures = settings.water = true;
       LiveSceneDiagnostics diagnostics;
       glViewport(0, 0, 128, 128);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -230,6 +234,7 @@ int main(int argc, char **argv) {
     rendering::Camera camera{context, 60.f, 0.1f, {0, 0, 0}};
     LiveVisualRenderer renderer{context};
     LiveSceneSettings settings;
+    settings.textures = settings.water = true;
     int failures = 0;
 
     context.shader.program = 7;
@@ -259,7 +264,7 @@ int main(int argc, char **argv) {
     settings.textures = false;
     const auto flat = draw(renderer, camera, settings);
     failures += check(textured[0] > textured[1] + 80 &&
-                          flat[0] < textured[0] && flat[1] > textured[1],
+                          flat[0] > flat[1] + 60 && flat[1] > textured[1],
                       "Textures toggle changes live RGB without reupload");
     LiveSceneDiagnostics populated;
     renderer.render(camera, settings, populated);
@@ -312,7 +317,97 @@ int main(int argc, char **argv) {
     settings.csg = true;
     failures += check(draw(renderer, camera, settings)[0] > 0,
                       "CSG switch restores live BSP surfaces");
+    const auto csg_flat = draw(renderer, camera, settings);
+    failures += check(csg_flat[0] > csg_flat[2] + 60 && csg_flat[1] > csg_flat[2] + 60,
+                      "untextured BSP retains the original yellow geometry palette");
     renderer.remove(15);
+
+    auto transparent_flat = quad_scene(false);
+    transparent_flat.library.materials[0].blend = territory::Blend::Alpha;
+    transparent_flat.library.materials[0].depth_write = false;
+    for (std::size_t i = 3; i < transparent_flat.library.textures[0].bytes.size(); i += 4)
+      transparent_flat.library.textures[0].bytes[i] = 0;
+    renderer.upload(30, transparent_flat);
+    const auto solid_flat = draw(renderer, camera, settings);
+    failures += check(solid_flat[0] > 180 && solid_flat[1] > 60,
+                      "geometry preview ignores material opacity and remains solid colored geometry");
+    renderer.remove(30);
+    transparent_flat.library.materials[0].blend = territory::Blend::Masked;
+    transparent_flat.library.materials[0].alpha_test = true;
+    renderer.upload(36, transparent_flat);
+    failures += check(draw(renderer, camera, settings)[0] > 180,
+                      "untextured geometry does not disappear through material alpha-test holes");
+    renderer.remove(36);
+
+    auto passable_flat = quad_scene(false);
+    passable_flat.draws[0].passable = true;
+    renderer.upload(34, passable_flat);
+    settings.passable = false;
+    failures += check(draw(renderer, camera, settings)[0] == 0,
+                      "Passable=false hides noncolliding geometry in the flat preview");
+    settings.passable = true;
+    const auto green_flat = draw(renderer, camera, settings);
+    failures += check(green_flat[1] > green_flat[0] + 60,
+                      "Passable geometry retains the original green palette");
+    renderer.remove(34);
+    settings.passable = false;
+
+    auto back_wall = quad_scene(false);
+    back_wall.library.materials[0].two_sided = false;
+    renderer.upload(33, back_wall);
+    settings.textures = true;
+    settings.culling = true;
+    failures += check(draw(renderer, camera, settings)[0] > 200,
+                      "left-handed flight camera keeps the wall's front face");
+    renderer.remove(33);
+    back_wall.draws[0].transform = glm::scale(glm::mat4{1}, {-1.f, 1.f, 1.f});
+    renderer.upload(37, back_wall);
+    failures += check(draw(renderer, camera, settings)[0] > 200,
+                      "mirrored actor preserves its front face in the left-handed flight camera");
+    renderer.remove(37);
+    back_wall.draws[0].transform = glm::mat4{1};
+    for (std::size_t i = 0; i < back_wall.meshes[0].indices.size(); i += 3)
+      std::swap(back_wall.meshes[0].indices[i], back_wall.meshes[0].indices[i + 2]);
+    renderer.upload(31, back_wall);
+    settings.textures = true;
+    settings.culling = true;
+    failures += check(draw(renderer, camera, settings)[0] == 0,
+                      "Culling=true removes the single-sided wall's back face");
+    settings.culling = false;
+    failures += check(draw(renderer, camera, settings)[0] > 200,
+                      "Culling=false reveals back faces for free-flight inspection");
+    renderer.remove(31);
+    settings.culling = true;
+
+    auto lit_wall = quad_scene(false);
+    lit_wall.library.materials[0].unlit = false;
+    renderer.upload(32, lit_wall);
+    settings.shadows = true;
+    settings.sun_azimuth_deg = 315;
+    settings.sun_elevation_deg = 15;
+    const auto low_sun = draw(renderer, camera, settings);
+    settings.sun_elevation_deg = 80;
+    const auto high_sun = draw(renderer, camera, settings);
+    settings.sun_elevation_deg = 15;
+    settings.sun_azimuth_deg = 135;
+    const auto reversed_sun = draw(renderer, camera, settings);
+    failures += check(low_sun[0] > high_sun[0] + 15,
+                      "Sun elevation changes live surface illumination, not only shadow projection");
+    failures += check(low_sun[0] > reversed_sun[0] + 15,
+                      "Sun direction changes live surface illumination");
+    renderer.remove(32);
+    settings.shadows = false;
+
+    auto middle_gray = quad_scene(false);
+    middle_gray.library.textures[0].source = "sRGB middle gray";
+    for (std::size_t i = 0; i < middle_gray.library.textures[0].bytes.size(); i += 4)
+      for (int channel = 0; channel < 3; ++channel)
+        middle_gray.library.textures[0].bytes[i + channel] = 128;
+    renderer.upload(35, middle_gray);
+    const auto gray_pixel = draw(renderer, camera, settings);
+    failures += check(gray_pixel[0] >= 124 && gray_pixel[0] <= 132,
+                      "sRGB textures preserve their brightness on the live window's linear framebuffer");
+    renderer.remove(35);
 
     auto near_alpha = quad_scene(false);
     near_alpha.library.materials[0].blend = territory::Blend::Alpha;

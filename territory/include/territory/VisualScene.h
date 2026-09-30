@@ -23,6 +23,8 @@ struct Draw {
   glm::mat4 transform{1.f};
   bool water{};
   std::string source;
+  // Collision classification for the untextured geometry preview only.
+  bool passable{};
 };
 struct TerrainLayer {
   std::size_t material{}, mask_texture{};

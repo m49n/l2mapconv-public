@@ -477,6 +477,9 @@ VisualScene VisualSceneLoader::load(const std::string &name,
           id = uv_check(id, found->second.second, src);
           scene.draws.push_back(
               {found->second.first, id, start, count, transform, false, src});
+          scene.draws.back().passable =
+              !(actor->collide_actors && actor->block_actors && actor->block_players &&
+                slot < mesh->materials.size() && mesh->materials[slot].enable_collision);
         }
       } catch (const std::exception &ex) {
         issue(IssueKind::Corrupt, label, ex.what());
@@ -573,6 +576,9 @@ VisualScene VisualSceneLoader::load(const std::string &name,
           scene.meshes.push_back(std::move(out));
           scene.draws.push_back({mesh, mid, 0, count, glm::mat4(1.f),
                                  !water_volume.empty(), src});
+          scene.draws.back().passable =
+              (node.flags & unreal::NF_Passable) != 0 ||
+              (surface.polygon_flags & unreal::PF_Passable) != 0;
           ++bsp_faces;
         } catch (const std::exception &ex) {
           issue(IssueKind::Corrupt, src, ex.what());

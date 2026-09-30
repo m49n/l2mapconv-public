@@ -72,21 +72,21 @@ out vec4 fragment;
   source += "vec4 material() {\n" + territory::material_expression(material) +
             "}\n";
   source += R"glsl(void main() {
-  vec4 color = material();
-  if (alpha_test && color.a < alpha_ref) discard;
+  vec4 color = show_textures ? material() : vec4(flat_color, 1.0);
+  if (show_textures && alpha_test && color.a < alpha_ref) discard;
 )glsl";
   if (terrain_mask)
     source += "color.a *= texture(terrain_mask, v_mask).r;\n"
               "if (color.a < 0.004) discard;\n";
   source += R"glsl(
-  if (!show_textures) color.rgb = flat_color;
   float shade = 1.0;
-  if (!unlit) {
+  if (!unlit || !show_textures) {
     vec3 n = length(v_normal) > 0.0001 ? normalize(v_normal) : vec3(0,0,1);
     if (!gl_FrontFacing) n = -n;
-    shade = 0.72 + 0.28 * max(dot(n, normalize(vec3(-0.35,-0.50,1.0))), 0.0);
-  }
 )glsl";
+  source += shadows
+      ? "shade = 0.72 + 0.28 * max(dot(n, sun_direction), 0.0);\n}\n"
+      : "shade = 0.72 + 0.28 * max(dot(n, normalize(vec3(-0.35,-0.50,1.0))), 0.0);\n}\n";
   if (shadows)
     source += R"glsl(
   vec4 light = light_matrix * vec4(v_world, 1.0);
@@ -110,7 +110,14 @@ out vec4 fragment;
   color.rgb *= mix(0.58, 1.0, visibility);
 )glsl";
   source += R"glsl(
-  fragment = vec4(color.rgb * shade, color.a);
+  vec3 rgb = max(color.rgb * shade, vec3(0.0));
+  // Color textures are decoded by GL_SRGB storage. The desktop/legacy
+  // framebuffer has sRGB conversion disabled, so encode only material RGB.
+  // Geometry-palette colors already use display-space values.
+  if (show_textures)
+    rgb = mix(1.055 * pow(rgb, vec3(1.0 / 2.4)) - 0.055,
+              12.92 * rgb, lessThanEqual(rgb, vec3(0.0031308)));
+  fragment = vec4(rgb, color.a);
 })glsl";
   return source;
 }
