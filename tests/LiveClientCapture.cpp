@@ -19,9 +19,20 @@ int capture_live_client(rendering::Context &context, int argc, char **argv) {
   const std::filesystem::path root{argv[2]}, output{argv[4]};
   const std::string map{argv[3]};
   std::filesystem::create_directories(output);
+  unreal::ArchiveLoader archives{root,
+                                 {unreal::SearchConfig{"maps", "unr"},
+                                  unreal::SearchConfig{"StaticMeshes", "usx"},
+                                  unreal::SearchConfig{"Textures", "utx"},
+                                  unreal::SearchConfig{"SysTextures", "utx"}}};
+  auto *archive = archives.load_archive(map);
+  territory::Json names = territory::Json::array();
+  for (const auto &name : archive->name_map)
+    names.push_back(std::string(name));
+  territory::write_json_atomic(output / "names.json", names, false);
   territory::VisualSceneLoader loader{root};
   auto scene = loader.load(map);
   territory::Json nearby = territory::Json::array();
+  std::set<std::string> nearby_actors;
   const glm::vec2 target{std::stof(argv[5]), std::stof(argv[6])};
   for (const auto &draw : scene.draws) {
     glm::vec3 lo{1e30f}, hi{-1e30f};
@@ -42,19 +53,15 @@ int capture_live_client(rendering::Context &context, int argc, char **argv) {
          {"material", scene.library.materials[draw.material].source},
          {"min", {lo.x, lo.y, lo.z}},
          {"max", {hi.x, hi.y, hi.z}}});
+    nearby_actors.insert(draw.source.substr(0, draw.source.find(':')));
   }
   territory::write_json_atomic(output / "nearby.json", nearby, false);
   territory::write_json_atomic(output / "materials.json",
                                territory::material_inventory(scene), false);
 
-  unreal::ArchiveLoader archives{root,
-                                 {unreal::SearchConfig{"maps", "unr"},
-                                  unreal::SearchConfig{"StaticMeshes", "usx"},
-                                  unreal::SearchConfig{"Textures", "utx"},
-                                  unreal::SearchConfig{"SysTextures", "utx"}}};
-  auto *archive = archives.load_archive(map);
   std::set<std::string> seen;
   territory::Json streams = territory::Json::array();
+  territory::Json actors = territory::Json::array();
   for (auto &entry : archive->export_map) {
     if (entry.class_name != "StaticMeshActor")
       continue;
@@ -67,6 +74,52 @@ int capture_live_client(rendering::Context &context, int argc, char **argv) {
       continue;
     const auto ref = mesh->asset_reference();
     const auto name = ref.package + "." + ref.object_path;
+    if (nearby_actors.contains(actor->full_name())) {
+      auto &stream = static_cast<std::istream &>(*archive);
+      const auto saved = stream.tellg();
+      stream.seekg(actor->serial_begin());
+      if (actor->flags & unreal::RF_HasStack) {
+        unreal::StateFrame state;
+        *archive >> state;
+      }
+      territory::Json properties = territory::Json::object();
+      for (const auto &p : archive->property_extractor.extract_properties()) {
+        const auto key = std::string(p.name);
+        switch (p.type) {
+        case unreal::PropertyType::Bool:
+          properties[key] = p.bool_value();
+          break;
+        case unreal::PropertyType::Int:
+          properties[key] = p.int32_t_value;
+          break;
+        case unreal::PropertyType::Byte:
+          properties[key] = p.uint8_t_value;
+          break;
+        case unreal::PropertyType::Name:
+          properties[key] =
+              std::string(archive->name_map.at(p.index_value.value));
+          break;
+        case unreal::PropertyType::Float:
+          properties[key] = p.float_value;
+          break;
+        default:
+          properties[key] = {{"type", static_cast<int>(p.type)},
+                             {"size", p.size},
+                             {"array_count", p.array_size.value},
+                             {"bytes", std::vector<std::uint8_t>(
+                                           p.data_value.begin(),
+                                           p.data_value.begin() +
+                                               std::min<std::size_t>(
+                                                   p.data_value.size(), 128))}};
+          break;
+        }
+      }
+      stream.seekg(saved);
+      actors.push_back({{"actor", actor->full_name()},
+                        {"mesh", name},
+                        {"flags", actor->flags},
+                        {"properties", properties}});
+    }
     if (!seen.insert(name).second)
       continue;
     territory::Json uv = territory::Json::array();
@@ -82,6 +135,7 @@ int capture_live_client(rendering::Context &context, int argc, char **argv) {
     streams.push_back({{"mesh", name}, {"uv_streams", uv}});
   }
   territory::write_json_atomic(output / "uv-streams.json", streams, false);
+  territory::write_json_atomic(output / "actors.json", actors, false);
   context.framebuffer.size = {1024, 768};
   rendering::Camera camera{
       context,

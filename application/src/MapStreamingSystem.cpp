@@ -52,6 +52,7 @@ void MapStreamingSystem::tick() {
         m_grid = MapGridTransform::from_map(m_seed_coordinate,
                                              result.payload->map);
         if (m_grid) {
+          m_selection.set_grid(*m_grid);
           m_scene->place_camera_for_seed(result.payload->map);
         }
         break;
@@ -151,6 +152,8 @@ void MapStreamingSystem::tick() {
                                          result.request.key.layer,
                                          *result.payload);
       m_groups.insert_or_assign(result.request.key, group);
+      m_selection.set_bounds(result.request.key.coordinate,
+                             result.payload->map.bounding_box);
       set_status(result.request.key, MapResidencyStatus::Resident);
     } catch (const std::exception &error) {
       m_failed.insert(result.request.key);

@@ -101,6 +101,14 @@ auto run_pts_geodata_tests() -> int {
                      "PTS flat block stores both heights in little endian");
 
   const auto original_l2j = read_bytes(l2j_path);
+  {
+    const auto l2j_only_directory = temporary.path / "l2j-only";
+    geodata::Exporter l2j_only{l2j_only_directory};
+    l2j_only.export_geodata(buffer, "24_18", false);
+    failures += expect(read_bytes(l2j_only_directory / "24_18.l2j") == original_l2j &&
+                           !std::filesystem::exists(l2j_only_directory / "24_18_conv.dat"),
+                       "disabling client DAT preserves L2J bytes and creates no DAT");
+  }
   auto existing_output_rejected = false;
   try {
     exporter.export_geodata(buffer, "24_18");

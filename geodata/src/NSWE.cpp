@@ -290,19 +290,21 @@ auto NSWE::slide_sphere_until_collision(int x, int y, int z,
   const auto dx = rcGetDirOffsetX(direction);
   const auto dy = rcGetDirOffsetY(direction);
 
-  // Place sphere on the cell
+  // Sweep between cell centers. Starting half a cell behind the source made
+  // opposite directions test different segments: backing into a nearby wall
+  // could forbid leaving a cell even though entering it was allowed.
   const glm::vec3 sphere_center{
-      map_origin.x + (x - dx * 0.5f) * m_cell_size + m_cell_size / 2.0f,
+      map_origin.x + x * m_cell_size + m_cell_size / 2.0f,
       map_origin.z + z * m_cell_height +
           sphere_radius * 2.0f, // Z-up swapped with Y-up
-      map_origin.y + (y - dy * 0.5f) * m_cell_size + m_cell_size / 2.0f,
+      map_origin.y + y * m_cell_size + m_cell_size / 2.0f,
   };
 
   geometry::Sphere sphere{sphere_center, sphere_radius};
 
   const auto triangles = triangles_at_columns(x, y, triangles_fetch_radius);
 
-  for (auto i = 0; i < static_cast<int>(m_cell_size * 1.5f / delta); ++i) {
+  for (auto i = 0; i < static_cast<int>(m_cell_size / delta); ++i) {
     drop_sphere(sphere, triangles);
 
     sphere.center.x += dx * delta;

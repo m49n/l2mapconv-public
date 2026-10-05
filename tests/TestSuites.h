@@ -3,11 +3,16 @@
 #include <filesystem>
 #include <string>
 
+auto run_camera_system_tests() -> int;
+
 auto run_geodata_generation_tests() -> int;
+auto run_geodata_build_tests() -> int;
+auto run_navmesh_region_geometry_tests() -> int;
 auto run_static_mesh_collision_tests(const std::filesystem::path &client,
                                      const std::string &region) -> int;
 
 auto run_map_catalog_tests() -> int;
+auto run_map_navigation_tests() -> int;
 auto run_map_residency_tests() -> int;
 auto run_map_load_options_tests() -> int;
 auto run_scene_group_tests() -> int;

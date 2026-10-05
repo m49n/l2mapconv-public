@@ -2,6 +2,7 @@
 
 #include "MapLoadOptions.h"
 #include "MapResidency.h"
+#include "MapGridTransform.h"
 
 #include <compare>
 #include <map>
@@ -60,7 +61,19 @@ public:
   auto summary() const -> MapSelectionSummary;
   auto residency_intent() const -> MapResidencyIntent;
 
+  auto grid() const -> const std::optional<MapGridTransform> & { return m_grid; }
+  void set_grid(MapGridTransform grid) { m_grid = std::move(grid); }
+  void set_bounds(MapCoordinate coordinate, geometry::Box bounds) {
+    m_bounds.insert_or_assign(coordinate, std::move(bounds));
+  }
+  auto bounds(MapCoordinate coordinate) const -> std::optional<geometry::Box> {
+    const auto found = m_bounds.find(coordinate);
+    return found == m_bounds.end() ? std::nullopt : std::optional{found->second};
+  }
+
 private:
+  std::optional<MapGridTransform> m_grid;
+  std::map<MapCoordinate, geometry::Box> m_bounds;
   MapCatalog m_catalog;
   Coordinates m_manual;
   Coordinates m_retry_requests;

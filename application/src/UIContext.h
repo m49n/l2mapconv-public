@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LiveSceneSettings.h"
+#include <navmesh/Settings.h>
 
 #include <functional>
 
@@ -48,6 +49,9 @@ struct UIContext {
     std::function<void()> build_handler;
     bool should_export;
     bool streaming_preview{false};
+    bool client_dat{true};
+    bool l2j{true}, navmesh{false};
+    navmesh::Settings navmesh_settings{};
 
     void set_defaults() {
       actor_height = 48.0f;
@@ -57,6 +61,7 @@ struct UIContext {
       max_walkable_climb = 16.0f;
       cell_size = 16.0f;
       cell_height = 1.0f;
+      navmesh_settings = {};
     }
   } geodata;
 };

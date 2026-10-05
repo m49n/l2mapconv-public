@@ -86,9 +86,18 @@ glm::mat4 visual_actor_transform(const unreal::Actor &actor) {
          glm::scale(glm::mat4(1.f), vec(actor.scale())) *
          glm::translate(glm::mat4(1.f), -vec(actor.pre_pivot));
 }
+bool visual_actor_visible(const unreal::Actor &actor, int zone_state) {
+  return !actor.hidden && !actor.delete_me &&
+         (actor.zone_render_states.empty() ||
+          std::any_of(actor.zone_render_states.begin(), actor.zone_render_states.end(),
+                      [zone_state](const auto &entry) { return entry.state == zone_state; }));
+}
 const unreal::MaterialReference &visual_skin(const unreal::Actor &actor,
                                              const unreal::StaticMesh &mesh,
-                                             std::size_t i) {
+                                             std::size_t i, int zone_state) {
+  for (const auto &entry : actor.zone_render_states)
+    if (entry.state == zone_state && i < entry.skins.size() && entry.skins[i].has_reference())
+      return entry.skins[i];
   if (i < actor.skins.size() && actor.skins[i].has_reference())
     return actor.skins[i];
   return mesh.materials.at(i).material;
@@ -260,6 +269,7 @@ VisualScene VisualSceneLoader::load(const std::string &name,
   };
   Json terrain_info = Json::array(), terrain_geometry = nullptr, classes = Json::object(),
        water = Json::array();
+  std::size_t zone_filtered_actors = 0;
   std::size_t static_actors = 0, bsp_faces = 0, water_volumes = 0,
               water_surfaces = 0;
   std::vector<WaterVolumeBounds> volume_bounds;
@@ -414,6 +424,10 @@ VisualScene VisualSceneLoader::load(const std::string &name,
         if (!actor || actor->hidden || actor->delete_me ||
             !actor->static_mesh.has_reference())
           continue;
+        if (!visual_actor_visible(*actor)) {
+          ++zone_filtered_actors;
+          continue;
+        }
         auto mesh = actor->static_mesh.as<unreal::StaticMesh>();
         if (!mesh) {
           issue(IssueKind::MissingObject, label, "Static mesh did not resolve");
@@ -618,6 +632,8 @@ VisualScene VisualSceneLoader::load(const std::string &name,
                                  {"min_z", scene.bounds.min_z},
                                  {"max_z", scene.bounds.max_z}}},
                                {"static_mesh_actors", static_actors},
+                               {"zone_state", normal_zone_state},
+                               {"zone_filtered_actors", zone_filtered_actors},
                                {"bsp_faces", bsp_faces},
                                {"meshes", scene.meshes.size()},
                                {"draws", scene.draws.size()},

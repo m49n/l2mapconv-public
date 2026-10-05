@@ -6,6 +6,7 @@
 #include "CameraSystem.h"
 #include "GeodataContext.h"
 #include "GeodataSystem.h"
+#include "GeodataBuildController.h"
 #include "LoadingSystem.h"
 #include "LiveVisualRenderer.h"
 #include "MapCatalog.h"
@@ -23,6 +24,7 @@
 #include "TerritoryRenderController.h"
 #include "TerritoryRenderWindow.h"
 #include "ExecutablePath.h"
+#include "PathfindingWindow.h"
 
 #include "UnrealMapSource.h"
 
@@ -84,12 +86,24 @@ auto Application::preview(const std::filesystem::path &client_root,
     ClientSessionContext client_session{client_root, std::move(recent_clients),
                                         std::move(browse_handler)};
     RenderingContext rendering_context{};
-    GeodataContext geodata_context{};
-
     Renderer renderer{rendering_context, m_resource_root};
     LiveVisualRenderer live_renderer{rendering_context.context};
     TerritoryRenderController territory_controller{running_executable_path(), make_territory_process()};
     TerritoryRenderViewState territory_view{{}, m_resource_root / "output" / "radar", {}};
+    GeodataBuildController geodata_controller{
+        running_executable_path(), m_resource_root / "output" / "geodata",
+        make_territory_process(L"--geodata-job")};
+    PathfindingController pathfinding_controller{running_executable_path(),m_resource_root/"output"/"pathfinding"};
+    PathfindingWindow pathfinding_window;
+    try {
+      const auto bundled = pathfinding::default_backend_profile_path(m_resource_root);
+      if (!bundled.empty())
+        pathfinding_window.context.select_profile(
+            bundled, pathfinding_window.profile, pathfinding_window.profile_path);
+    } catch (const std::exception &error) {
+      pathfinding_window.context.error =
+          std::string{"Cannot load bundled backend: "} + error.what();
+    }
 
     SystemStack systems;
     systems.push(std::make_unique<CameraSystem>(rendering_context,
@@ -104,12 +118,11 @@ auto Application::preview(const std::filesystem::path &client_root,
     systems.push(std::make_unique<UISystem>(ui_context, window_context,
                                             rendering_context, map_selection,
                                             client_session, &territory_controller,
-                                            &territory_view));
+                                            &territory_view, &geodata_controller,
+                                            &pathfinding_window, &pathfinding_controller));
     systems.push(std::make_unique<RenderingSystem>(rendering_context,
                                                    window_context, ui_context,
                                                    live_renderer));
-    systems.push(std::make_unique<GeodataSystem>(geodata_context, ui_context,
-                                                 &renderer));
 
     // Run application
     application_context.running = true;

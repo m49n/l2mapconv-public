@@ -17,6 +17,9 @@
 #include <string_view>
 #include <vector>
 
+int run_manual_terrain_renderer_tests();
+int inspect_manual_terrain(int argc, char **argv);
+
 namespace {
 
 struct HiddenWindow {
@@ -152,6 +155,8 @@ int main(int argc, char **argv) {
     HiddenWindow window{capture ? 1024 : 128, capture ? 768 : 128};
     rendering::Context context{};
     if (capture) return capture_live_client(context, argc, argv);
+    if (argc > 1 && std::string_view{argv[1]} == "--manual-terrain-smoke")
+      return inspect_manual_terrain(argc, argv);
     context.framebuffer.size = {128, 128};
     if (argc == 4 && std::string_view{argv[1]} == "--client-smoke") {
       territory::VisualSceneLoader loader{std::filesystem::path{argv[2]}};
@@ -236,6 +241,7 @@ int main(int argc, char **argv) {
     LiveSceneSettings settings;
     settings.textures = settings.water = true;
     int failures = 0;
+    failures += run_manual_terrain_renderer_tests();
 
     context.shader.program = 7;
     context.mesh.vao = 8;

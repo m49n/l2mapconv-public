@@ -10,12 +10,12 @@
 #include <sstream>
 #include <utility>
 
-UnrealLoader::UnrealLoader(const std::filesystem::path &root_path)
+UnrealLoader::UnrealLoader(const std::filesystem::path &root_path, unreal::ArchiveReadObserver observer)
     : m_package_loader{root_path,
                        {unreal::SearchConfig{"Maps", "unr"},
                         unreal::SearchConfig{"StaticMeshes", "usx"},
                         unreal::SearchConfig{"Textures", "utx"},
-                        unreal::SearchConfig{"SysTextures", "utx"}}} {}
+                        unreal::SearchConfig{"SysTextures", "utx"}}, std::move(observer)} {}
 
 auto UnrealLoader::load_map(const std::string &name,
                             MapLoadOptions options) const -> Map {

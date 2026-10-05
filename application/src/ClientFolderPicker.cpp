@@ -160,3 +160,28 @@ void show_client_selection_error(std::string_view message) {
   utils::Log(utils::LOG_ERROR, "App") << message << std::endl;
 #endif
 }
+
+auto choose_file(std::wstring_view title, bool save_new,
+                 std::wstring_view default_extension) -> std::optional<std::filesystem::path> {
+#ifdef _WIN32
+  const ComApartment apartment;
+  if(!apartment.ready()) return {};
+  IFileDialog *raw{};
+  const auto clsid=save_new?CLSID_FileSaveDialog:CLSID_FileOpenDialog;
+  if(FAILED(CoCreateInstance(clsid,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&raw)))) return {};
+  const ComPointer<IFileDialog> dialog{raw};
+  FILEOPENDIALOGOPTIONS options{};
+  if(FAILED(dialog->GetOptions(&options)) ||
+     FAILED(dialog->SetOptions(options|FOS_FORCEFILESYSTEM|FOS_PATHMUSTEXIST|(save_new?FOS_OVERWRITEPROMPT:FOS_FILEMUSTEXIST))) ||
+     FAILED(dialog->SetTitle(std::wstring(title).c_str()))) return {};
+  if(save_new) dialog->SetDefaultExtension(std::wstring(default_extension).c_str());
+  if(FAILED(dialog->Show(GetActiveWindow()))) return {};
+  IShellItem *item_raw{};if(FAILED(dialog->GetResult(&item_raw))) return {};
+  const ComPointer<IShellItem> item{item_raw};
+  PWSTR path{};if(FAILED(item->GetDisplayName(SIGDN_FILESYSPATH,&path))) return {};
+  const std::unique_ptr<wchar_t,decltype(&CoTaskMemFree)> owned{path,&CoTaskMemFree};
+  return std::filesystem::path{path};
+#else
+  (void)title;(void)save_new;(void)default_extension;return {};
+#endif
+}

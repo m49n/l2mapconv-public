@@ -17,6 +17,17 @@ add_executable(${PROJECT_NAME}
     src/ExecutablePath.cpp
     src/MapCatalog.cpp
     src/MapGridTransform.cpp
+    src/MapNavigation.cpp
+    src/OwnedChildProcess.cpp
+    src/PathfindingJob.cpp
+    src/PathfindingWorker.cpp
+    src/PathfindingController.cpp
+    src/PathfindingView.cpp
+    src/PathfindingContext.cpp
+    src/PathfindingLoader.cpp
+    src/PathfindingOverlay.cpp
+    src/PathfindingWindow.cpp
+    src/PathfindingResults.cpp
     src/MapResidency.cpp
     src/MapSelectionContext.cpp
     src/MapLoadQueue.cpp
@@ -32,6 +43,10 @@ add_executable(${PROJECT_NAME}
     src/UnrealMapSource.cpp
     src/LoadingSystem.cpp
     src/GeodataSystem.cpp
+    src/GeodataBuildJob.cpp
+    src/GeodataBuildController.cpp
+    src/GeodataBuildWorker.cpp
+    src/NavmeshRegionGeometry.cpp
 
     src/UnrealLoader.cpp
     src/GeodataEntityFactory.cpp
@@ -52,7 +67,9 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE unreal
     PRIVATE rendering
     PRIVATE geodata
+    PRIVATE navmesh
     PRIVATE territory
+    PRIVATE pathfinding
 
     PRIVATE glfw
     PRIVATE libglew_static
@@ -109,5 +126,33 @@ if(WIN32)
     include("${CMAKE_SOURCE_DIR}/cmake/RuntimeLibraries.cmake")
 endif()
 install(DIRECTORY install/ DESTINATION . COMPONENT Runtime)
+set(L2MAPCONV_PATHFINDING_BACKEND_DIR "" CACHE PATH
+    "Prepared local Pathfinding Lab backend bundle (never a live server directory)")
+if(L2MAPCONV_PATHFINDING_BACKEND_DIR)
+    if(NOT EXISTS "${L2MAPCONV_PATHFINDING_BACKEND_DIR}/profile.json" OR
+       NOT EXISTS "${L2MAPCONV_PATHFINDING_BACKEND_DIR}/bundle-manifest.json")
+        message(FATAL_ERROR "Pathfinding backend must contain profile.json and bundle-manifest.json")
+    endif()
+    # Do not publish an old Java runner after changing its C++/UI companion.
+    install(CODE "
+        file(READ \"${L2MAPCONV_PATHFINDING_BACKEND_DIR}/bundle-manifest.json\" manifest)
+        string(JSON bundled_source_hash GET \"\$\{manifest\}\" runner_source_sha256)
+        file(SHA256 \"${CMAKE_SOURCE_DIR}/tools/pathfinding/NavmeshRouteRunner.java\" source_hash)
+        if(NOT source_hash STREQUAL bundled_source_hash)
+            message(FATAL_ERROR \"Repackage Pathfinding backend: NavmeshRouteRunner.java changed\")
+        endif()
+        foreach(source BenchmarkProgress.java)
+            string(JSON expected GET \"\$\{manifest\}\" support_sources \"\$\{source\}\")
+            file(SHA256 \"${CMAKE_SOURCE_DIR}/tools/pathfinding/\$\{source\}\" actual)
+            if(NOT actual STREQUAL expected)
+                message(FATAL_ERROR \"Repackage Pathfinding backend: \$\{source\} changed\")
+            endif()
+        endforeach()
+    " COMPONENT Runtime)
+    install(DIRECTORY "${L2MAPCONV_PATHFINDING_BACKEND_DIR}/"
+        DESTINATION pathfinding-backend COMPONENT Runtime)
+endif()
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/tools/pathfinding/" DESTINATION tools/pathfinding COMPONENT Runtime
+    FILES_MATCHING PATTERN "*.java" PATTERN "*.ps1" PATTERN "*.gradle" PATTERN "*.md")
 install(FILES "${CMAKE_SOURCE_DIR}/README.md" "${CMAKE_SOURCE_DIR}/CREDITS.md"
     "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION . COMPONENT Runtime)

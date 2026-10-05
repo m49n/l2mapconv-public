@@ -24,7 +24,8 @@
 
 class UnrealLoader {
 public:
-  explicit UnrealLoader(const std::filesystem::path &root_path);
+  explicit UnrealLoader(const std::filesystem::path &root_path,
+                        unreal::ArchiveReadObserver observer = {});
 
   auto load_map(const std::string &name,
                 MapLoadOptions options = MapLoadOptions::full()) const -> Map;

@@ -4,6 +4,7 @@
 #include "Map.h"
 #include "Renderer.h"
 #include "System.h"
+#include <unreal/ArchiveLoader.h>
 
 #include <filesystem>
 #include <string>
@@ -14,7 +15,8 @@ public:
   explicit LoadingSystem(GeodataContext &geodata_context,
                          const Renderer *renderer,
                          const std::filesystem::path &root_path,
-                         const std::vector<std::string> &map_names);
+                         const std::vector<std::string> &map_names,
+                         unreal::ArchiveReadObserver observer = {});
 
 private:
   GeodataContext &m_geodata_context;

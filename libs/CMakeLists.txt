@@ -13,6 +13,7 @@ set(RECASTNAVIGATION_TESTS OFF)
 option(RECASTNAVIGATION_EXAMPLES "Build examples" OFF)
 set(RECASTNAVIGATION_EXAMPLES OFF)
 add_subdirectory(recast)
+target_compile_definitions(Detour PUBLIC DT_POLYREF64)
 
 # Apply Recast patch
 find_package(Git REQUIRED)

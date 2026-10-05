@@ -16,6 +16,7 @@ public:
       -> std::optional<MapGridTransform>;
 
   auto coordinate_at(glm::vec2 world_position) const -> MapCoordinate;
+  auto world_center(MapCoordinate coordinate) const -> glm::vec2;
 
 private:
   MapCoordinate m_anchor;

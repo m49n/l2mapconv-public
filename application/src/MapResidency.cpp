@@ -4,8 +4,16 @@ auto desired_map_residency(const MapCatalog &catalog,
                            const MapResidencyIntent &intent)
     -> DesiredMapResidency {
   DesiredMapResidency desired{.terrain = intent.manual, .detail = {}};
-  if (!intent.auto_load || !intent.current ||
-      !catalog.contains(*intent.current)) {
+  if (!intent.current || !catalog.contains(*intent.current)) {
+    return desired;
+  }
+
+  if (!intent.auto_load) {
+    // Manual mode shows the complete selected square under the camera;
+    // whole-world selections keep only this one Detail scene resident.
+    if (intent.manual.contains(*intent.current)) {
+      desired.detail.insert(*intent.current);
+    }
     return desired;
   }
 

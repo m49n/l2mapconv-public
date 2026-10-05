@@ -21,10 +21,11 @@ void log_geometry_stats(const std::string &map_name, const char *class_name,
 LoadingSystem::LoadingSystem(GeodataContext &geodata_context,
                              const Renderer *renderer,
                              const std::filesystem::path &root_path,
-                             const std::vector<std::string> &map_names)
+                             const std::vector<std::string> &map_names,
+                             unreal::ArchiveReadObserver observer)
     : m_geodata_context{geodata_context}, m_renderer{renderer} {
 
-  UnrealLoader unreal_loader{root_path};
+  UnrealLoader unreal_loader{root_path, std::move(observer)};
   geodata::Loader geodata_loader{"geodata"};
 
   GeodataEntityFactory geodata_entity_factory;

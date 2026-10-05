@@ -12,7 +12,7 @@ public:
   explicit Exporter(const std::filesystem::path &root_path);
 
   void export_geodata(const ExportBuffer &export_buffer,
-                      const std::string &name) const;
+                      const std::string &name, bool client_dat = true) const;
 
 private:
   const std::filesystem::path m_root_path;

@@ -40,7 +40,9 @@ auto ArchiveLoader::load_and_cache_archive(
 
   std::stringstream decrypted;
   const Decryptor decryptor;
+  if (m_observer) m_observer(path, ArchiveReadPhase::Before);
   decryptor.decrypt(path, decrypted);
+  if (m_observer) m_observer(path, ArchiveReadPhase::After);
 
   const auto inserted =
       m_archives.try_emplace(name, name, std::move(decrypted), *this);

@@ -1,0 +1,6 @@
+add_library(navmesh src/Builder.cpp src/Query.cpp src/Serialization.cpp src/InputGeometry.cpp src/RegionMetadata.cpp)
+target_sources(navmesh PRIVATE src/WorldMesh.cpp)
+target_include_directories(navmesh PUBLIC include)
+target_link_libraries(navmesh PUBLIC geodata geometry utils glm Detour territory PRIVATE Recast)
+set_target_properties(navmesh PROPERTIES ${TARGET_PROPERTIES})
+target_compile_options(navmesh PRIVATE ${TARGET_COMPILE_OPTIONS})

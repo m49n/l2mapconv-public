@@ -1,0 +1,6 @@
+add_library(pathfinding src/Case.cpp src/Result.cpp src/Dataset.cpp src/BackendAdapters.cpp src/Benchmark.cpp)
+target_include_directories(pathfinding PUBLIC include)
+target_include_directories(pathfinding PRIVATE ${CMAKE_SOURCE_DIR}/geodata/src)
+target_link_libraries(pathfinding PUBLIC territory navmesh geodata)
+set_target_properties(pathfinding PROPERTIES ${TARGET_PROPERTIES})
+target_compile_options(pathfinding PRIVATE ${TARGET_COMPILE_OPTIONS})

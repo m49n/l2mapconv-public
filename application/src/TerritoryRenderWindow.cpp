@@ -17,7 +17,6 @@ void draw_territory_render_window(TerritoryRenderViewState &view,
                                   TerritoryRenderController &controller,
                                   const MapSelectionContext &selection,
                                   ClientSessionContext &client) {
-  ImGui::SetNextWindowPos({990, 540}, ImGuiCond_FirstUseEver);
   ImGui::SetNextWindowSize({430, 500}, ImGuiCond_FirstUseEver);
   if (!ImGui::Begin("Territory Render")) {
     ImGui::End();

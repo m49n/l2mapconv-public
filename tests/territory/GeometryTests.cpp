@@ -45,6 +45,79 @@ int geometry_tests() {
   expect(water_surface(water_material, elevated, volumes).empty(),
          "surface at different height is not volume water level");
   TestDirectory dir;
+  {
+    // P542 ZoneRenderState: one tagged struct with ZoneState=3 and empty
+    // Skins. The next outer property must remain readable after the array.
+    const char payload[] = {1, 0x59, 11, 1, 2, 0x22, 3, 0,
+                            0, 0,    3,  9, 0, 0,    4, static_cast<char>(0x83),
+                            0};
+    ArchiveFixture f(dir.path(), std::string(payload, sizeof(payload)));
+    for (const auto *name :
+         {"ZoneRenderState", "ZoneState", "Skins", "bHidden"})
+      f.archive->name_map.push_back(f.names.name(name));
+    static_cast<std::istream &>(*f.archive).seekg(64);
+    const auto properties = f.archive->property_extractor.extract_properties();
+    expect(properties.size() == 2 && properties[0].subproperties.size() == 1 &&
+               properties[1].bool_value(),
+           "P542 zone render structs are decoded without consuming next actor "
+           "property");
+    unreal::Actor seasonal(*f.archive);
+    expect(seasonal.set_property(properties[0]),
+           "actor consumes zone state metadata");
+    expect(!visual_actor_visible(seasonal) && visual_actor_visible(seasonal, 3),
+           "winter actor is only visible in its explicit zone state");
+  }
+  {
+    // Nonempty Skins in P542 can make the outer Size one byte short. Count
+    // and tagged struct terminators, not that Size, delimit these entries.
+    const char payload[] = {1,
+                            0x59,
+                            11,
+                            1,
+                            2,
+                            0x22,
+                            6,
+                            0,
+                            0,
+                            0,
+                            3,
+                            0x19,
+                            1,
+                            static_cast<char>(0x81),
+                            0,
+                            4,
+                            static_cast<char>(0x83),
+                            0};
+    ArchiveFixture f(dir.path(), std::string(payload, sizeof(payload)));
+    for (const auto *name :
+         {"ZoneRenderState", "ZoneState", "Skins", "bHidden"})
+      f.archive->name_map.push_back(f.names.name(name));
+    static_cast<std::istream &>(*f.archive).seekg(64);
+    const auto properties = f.archive->property_extractor.extract_properties();
+    expect(properties.size() == 2 && properties[1].bool_value() &&
+               properties[0].subproperty("Skins").array_size.value == 1,
+           "underreported P542 zone Size keeps skins and following properties");
+    f.archive->export_map.push_back({f.names.name("StaticMeshActor"), {}, 0,
+                                     f.names.name("Truncated"), 0, {14}, {64}, {}});
+    expect(throws([&] { f.archive->object_loader.export_object(f.archive->export_map[0]); }),
+           "production actor loader bounds zone structs to their own export");
+    static_cast<std::istream &>(*f.archive).seekg(64);
+    unreal::Archive::ReadLimit truncated(*f.archive, 64 + 14);
+    expect(throws([&] { f.archive->property_extractor.extract_properties(); }),
+           "zone structs never read beyond the containing export");
+  }
+  {
+    const char payload[] = {1, 0x59, 9, 2, 1, 0, 0, 0, 3, 0, 0, 0, 0};
+    ArchiveFixture f(dir.path(), std::string(payload, sizeof(payload)));
+    f.archive->name_map.push_back(f.names.name("ZoneRenderState"));
+    static_cast<std::istream &>(*f.archive).seekg(64);
+    const auto properties = f.archive->property_extractor.extract_properties();
+    unreal::Actor legacy(*f.archive);
+    legacy.set_property(properties.at(0));
+    expect(visual_actor_visible(legacy) && visual_actor_visible(legacy, 3) &&
+               !visual_actor_visible(legacy, 5),
+           "legacy integer zone states remain supported");
+  }
   ArchiveFixture fixture(dir.path());
   unreal::Actor actor(*fixture.archive);
   actor.location = {10, 20, 30};
@@ -65,6 +138,21 @@ int geometry_tests() {
   expect(visual_skin(actor, mesh, 0).reference().object_path ==
              refs.a.reference().object_path,
          "collision-disabled visual material survives");
+  actor.zone_render_states = {{3, {refs.a}}, {1, {refs.b}}};
+  expect(visual_skin(actor, mesh, 0).reference().object_path ==
+             refs.b.reference().object_path,
+         "matching zone state's skin overrides the shared mesh");
+  actor.zone_render_states = {{1, {}}};
+  actor.skins = {refs.b};
+  expect(visual_skin(actor, mesh, 0).reference().object_path ==
+             refs.b.reference().object_path,
+         "empty state skins preserve the actor's skin");
+  actor.zone_render_states.clear();
+  expect(visual_actor_visible(actor), "unconditional geometry remains visible");
+  actor.hidden = true;
+  expect(!visual_actor_visible(actor),
+         "zone state does not revive hidden actors");
+  actor.hidden = false;
   VisualScene scene;
   {
     auto elevated = make_visual_fixture();

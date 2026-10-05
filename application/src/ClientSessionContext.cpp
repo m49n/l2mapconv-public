@@ -14,7 +14,7 @@ ClientSessionContext::ClientSessionContext(
 
 auto ClientSessionContext::browse() -> bool {
   if (m_switch_blocked) {
-    m_error = "Finish or cancel the territory job before switching clients.";
+    m_error = "Finish or cancel the build or render job before switching clients.";
     return false;
   }
   if (m_requested_client) {
@@ -32,7 +32,7 @@ auto ClientSessionContext::browse() -> bool {
 auto ClientSessionContext::request_switch(
     const std::filesystem::path &client_root) -> bool {
   if (m_switch_blocked) {
-    m_error = "Finish or cancel the territory job before switching clients.";
+    m_error = "Finish or cancel the build or render job before switching clients.";
     return false;
   }
   if (m_requested_client) {

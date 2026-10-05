@@ -9,6 +9,13 @@
 
 namespace rendering {
 
+struct CameraState {
+  glm::vec3 position;
+  glm::quat orientation;
+  bool top{};
+  float width{4096}, z_min{-32768}, z_max{32768};
+};
+
 class Camera {
 public:
   explicit Camera(Context &context, float fov, float near,
@@ -28,6 +35,10 @@ public:
   auto projection_matrix() const -> glm::mat4;
 
   auto frustum() const -> geometry::Frustum;
+  auto snapshot() const -> CameraState;
+  void restore(const CameraState &);
+  void set_top_view(glm::vec2 center, float width, float z_min, float z_max);
+  bool top_view() const { return m_top; }
 
 private:
   const glm::vec3 m_up = {0.0f, 0.0f, 1.0f};
@@ -39,6 +50,8 @@ private:
 
   glm::vec3 m_position;
   glm::quat m_orientation;
+  bool m_top{};
+  float m_width{4096}, m_z_min{-32768}, m_z_max{32768};
 };
 
 } // namespace rendering

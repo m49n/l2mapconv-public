@@ -83,6 +83,108 @@ auto check_null_neighbors() -> int {
   return failures;
 }
 
+void add_quad(geodata::Mesh &mesh, const std::array<glm::vec3, 4> &points) {
+  const auto base = static_cast<unsigned int>(mesh.vertices.size());
+  const auto normal = glm::normalize(
+      glm::cross(points[1] - points[0], points[2] - points[0]));
+  for (const auto &point : points)
+    mesh.vertices.push_back({point, normal});
+  for (auto index : {0U, 1U, 2U, 0U, 2U, 3U})
+    mesh.indices.push_back(base + index);
+}
+
+auto fixture_rotation(int quarter_turns) -> glm::mat4 {
+  auto transform = glm::translate(glm::mat4{1}, glm::vec3{128, 128, 0});
+  transform = glm::rotate(transform, glm::radians(90.0f * quarter_turns),
+                          glm::vec3{0, 0, 1});
+  return glm::translate(transform, glm::vec3{-128, -128, 0});
+}
+
+struct SweepPair {
+  int ax, ay, bx, by, forward_bit, reverse_bit;
+};
+
+auto check_wall_sweeps() -> int {
+  auto failures = 0;
+  // A=(120,120), B=(120,136), rotated around (128,128). The wall
+  // is beyond B, not between A and B. A gentle X slope exercises the
+  // sphere collision pass on both cells without forcing private state.
+  const std::array pairs{
+      SweepPair{7, 7, 7, 8, 2, 8}, SweepPair{8, 7, 7, 7, 1, 4},
+      SweepPair{8, 8, 8, 7, 8, 2}, SweepPair{7, 8, 8, 8, 4, 1}};
+  for (int turn = 0; turn < 4; ++turn) {
+    for (const auto wall_y : {154.0f, 146.0f}) {
+      auto mesh = floor_mesh();
+      add_quad(*mesh, {{{0, 0, 0}, {256, 0, 32}, {256, 256, 32},
+                        {0, 256, 0}}});
+      add_quad(*mesh, {{{0, wall_y, -32}, {256, wall_y, -32},
+                        {256, wall_y, 192}, {0, wall_y, 192}}});
+      geodata::Map map{"wall-sweep",
+                       geometry::Box{{0, 0, -128}, {256, 256, 512}}};
+      map.add({mesh, fixture_rotation(turn)});
+      geodata::NSWE nswe{map, 48, 16, 45.5f, 2, 16, 16, 1};
+      const auto &field = nswe.calculate_nswe();
+      const auto &pair = pairs[turn];
+      const auto *a = walkable_span(field, pair.ax, pair.ay);
+      const auto *b = walkable_span(field, pair.bx, pair.by);
+      failures += expect(a && b, "wall fixture retains both floor cells");
+      if (!a || !b)
+        continue;
+      if (wall_y == 154.0f) {
+        // Both centers clear the wall by at least the actor radius (16).
+        // Backing the reverse sweep up by half a cell incorrectly hits it.
+        failures += expect((geodata::unpack_nswe(a->area) &
+                            pair.forward_bit) != 0,
+                           "clear center-to-center approach stays open");
+        failures += expect((geodata::unpack_nswe(b->area) &
+                            pair.reverse_bit) != 0,
+                           "clear return from wall cannot become a trap");
+        failures += expect((geodata::unpack_nswe(b->area) &
+                            pair.forward_bit) == 0,
+                           "movement into the wall remains blocked");
+      } else {
+        // B is only 10 units from the wall: a radius-16 actor cannot fit.
+        failures += expect((geodata::unpack_nswe(a->area) &
+                            pair.forward_bit) == 0,
+                           "sweep checks the destination's wall clearance");
+      }
+    }
+  }
+  return failures;
+}
+
+auto check_step_and_drop_sweeps() -> int {
+  auto failures = 0;
+  const std::array pairs{
+      SweepPair{7, 8, 8, 8, 4, 1}, SweepPair{7, 7, 7, 8, 2, 8},
+      SweepPair{8, 7, 7, 7, 1, 4}, SweepPair{8, 8, 8, 7, 8, 2}};
+  for (int turn = 0; turn < 4; ++turn) {
+    for (const auto height : {8.0f, 64.0f}) {
+      auto mesh = floor_mesh();
+      add_floor(*mesh, 0, 127.75f, 0);
+      add_floor(*mesh, 128.25f, 256, height);
+      geodata::Map map{"step-and-drop",
+                       geometry::Box{{0, 0, -128}, {256, 256, 512}}};
+      map.add({mesh, fixture_rotation(turn)});
+      geodata::NSWE nswe{map, 48, 16, 45.5f, 2, 16, 16, 1};
+      const auto &field = nswe.calculate_nswe();
+      const auto &pair = pairs[turn];
+      const auto *low = walkable_span(field, pair.ax, pair.ay);
+      const auto *high = walkable_span(field, pair.bx, pair.by);
+      failures += expect(low && high, "step fixture retains both levels");
+      if (!low || !high)
+        continue;
+      failures += expect(((geodata::unpack_nswe(low->area) &
+                           pair.forward_bit) != 0) == (height == 8.0f),
+                         "small stair is climbable but high ledge is not");
+      failures += expect((geodata::unpack_nswe(high->area) &
+                          pair.reverse_bit) != 0,
+                         "descending stairs and one-way drops remain open");
+    }
+  }
+  return failures;
+}
+
 template <typename Action>
 auto rejects(Action action, std::string_view message = {}) -> bool {
   try {
@@ -234,6 +336,8 @@ auto run_geodata_generation_tests() -> int {
   const auto previous_level = utils::Log::level;
   utils::Log::level = utils::LOG_NONE;
   auto failures = check_null_neighbors();
+  failures += check_wall_sweeps();
+  failures += check_step_and_drop_sweeps();
   failures += check_export_limits();
   failures += check_builder_height_narrowing();
   utils::Log::level = previous_level;

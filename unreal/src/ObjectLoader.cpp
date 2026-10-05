@@ -148,7 +148,9 @@ auto ObjectLoader::export_object(ObjectExport &object_export) const
     static_cast<std::istream&>(m_archive).clear();
     static_cast<std::istream &>(m_archive).seekg(
         object_export.serial_offset.value);
-    if (std::dynamic_pointer_cast<Material>(object) || std::dynamic_pointer_cast<Palette>(object)) {
+    if (std::dynamic_pointer_cast<Material>(object) ||
+        std::dynamic_pointer_cast<Palette>(object) ||
+        std::dynamic_pointer_cast<StaticMeshActor>(object)) {
       Archive::ReadLimit limit(m_archive, object->serial_end());
       object->deserialize();
     } else {

@@ -7,7 +7,6 @@
 #include "SurfaceVisibility.h"
 #include "TestSuites.h"
 #include "TestSupport.h"
-#include "UISettings.h"
 #include "UnrealConverters.h"
 #include "UnrealLoader.h"
 
@@ -58,12 +57,12 @@ auto main(int argc, char **argv) -> int {
   failures += expect(executable_path.filename() ==
                          std::filesystem::path{argv[0]}.filename(),
                      "running executable path identifies the current module");
-  failures += expect(imgui_ini_filename() == nullptr,
-                     "preview never writes automatic ImGui settings");
   failures += expect(primary_uv({}, 0) == glm::vec2{0.0f, 0.0f},
                      "missing UV stream uses zero UV");
 
   failures += run_map_catalog_tests();
+  failures += run_map_navigation_tests();
+  failures += run_camera_system_tests();
   failures += run_map_residency_tests();
   failures += run_map_load_options_tests();
   failures += run_scene_group_tests();
@@ -75,6 +74,7 @@ auto main(int argc, char **argv) -> int {
   failures += run_imported_geodata_tests();
   failures += run_pts_geodata_tests();
   failures += run_geodata_generation_tests();
+  failures += run_geodata_build_tests();
   failures += run_recent_clients_tests();
   failures += run_client_startup_tests();
   failures += run_client_session_tests();

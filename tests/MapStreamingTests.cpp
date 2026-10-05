@@ -207,6 +207,14 @@ auto run_map_streaming_tests() -> int {
   failures += expect(!sink_view->layer_visible({22, 22}, MapLayer::Terrain) &&
                          sink_view->layer_visible({22, 22}, MapLayer::Detail),
                      "resident detail hides only its own terrain fallback");
+  const auto uploads_before_manual_mode = sink_view->upload_count();
+  selection.set_auto_load(false);
+  streaming.tick();
+  failures += expect(streaming.resident().detail == Coordinates{{22, 22}} &&
+                         sink_view->layer_visible({22, 22}, MapLayer::Detail) &&
+                         sink_view->upload_count() == uploads_before_manual_mode,
+                     "disabling automatic loading keeps the checked current map visible without reupload");
+  selection.set_auto_load(true);
 
   sink_view->set_region({23, 22});
   streaming.tick();
@@ -220,6 +228,45 @@ auto run_map_streaming_tests() -> int {
                      "removing detail restores retained terrain fallback");
   failures += expect(resident.detail.contains({23, 22}),
                      "new current detail becomes resident");
+
+  MapSelectionContext manual_selection{MapCatalog::discover(fixture.root)};
+  manual_selection.set_manual({22, 22}, true);
+  manual_selection.set_manual({22, 23}, true);
+  manual_selection.set_auto_load(false);
+  manual_selection.set_include_neighbors(true);
+  auto manual_service = std::make_unique<ImmediateMapLoadService>();
+  auto manual_sink = std::make_unique<FakeMapSceneSink>();
+  auto *manual_sink_view = manual_sink.get();
+  MapStreamingSystem manual_streaming{manual_selection,
+                                      std::move(manual_service),
+                                      std::move(manual_sink), {22, 22}};
+  manual_streaming.tick();
+  manual_streaming.tick();
+  manual_streaming.tick();
+  auto manual_resident = manual_streaming.resident();
+  failures += expect(manual_resident.detail == Coordinates{{22, 22}} &&
+                         manual_resident.terrain == Coordinates{{22, 22}, {22, 23}} &&
+                         !manual_sink_view->layer_visible({22, 22}, MapLayer::Terrain),
+                     "manual mode loads selected current detail while selected neighbors remain terrain");
+  manual_sink_view->set_region({23, 22});
+  manual_streaming.tick();
+  failures += expect(manual_streaming.resident().detail.empty() &&
+                         manual_sink_view->layer_visible({22, 22}, MapLayer::Terrain),
+                     "manual mode restores terrain when the camera enters an unchecked map");
+  manual_selection.set_manual({23, 22}, true);
+  manual_streaming.tick();
+  manual_streaming.tick();
+  failures += expect(manual_streaming.resident().detail == Coordinates{{23, 22}},
+                     "checking the current map loads its full detail without automatic loading");
+  manual_selection.set_manual({23, 22}, false);
+  manual_streaming.tick();
+  failures += expect(manual_streaming.resident().detail.empty() &&
+                         !manual_streaming.resident().terrain.contains({23, 22}),
+                     "unchecking the manual current map unloads its detail and terrain");
+  manual_sink_view->set_region({99, 99});
+  manual_streaming.tick();
+  failures += expect(manual_streaming.resident().detail.empty(),
+                     "manual mode keeps no detail when the camera is outside the catalog");
 
   selection.set_include_neighbors(true);
   streaming.tick();

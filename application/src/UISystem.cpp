@@ -2,7 +2,18 @@
 
 #include "UISettings.h"
 #include "UISystem.h"
+#include "MapNavigation.h"
 #include "TerritoryRenderController.h"
+#include "GeodataBuildController.h"
+#include "PathfindingWindow.h"
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 #include <string>
 
@@ -69,12 +80,18 @@ UISystem::UISystem(UIContext &ui_context, WindowContext &window_context,
                    MapSelectionContext &map_selection_context,
                    ClientSessionContext &client_session_context,
                    TerritoryRenderController *territory_controller,
-                   TerritoryRenderViewState *territory_view)
+                   TerritoryRenderViewState *territory_view,
+                   GeodataBuildController *geodata_controller,
+                   PathfindingWindow *pathfinding_window,
+                   PathfindingController *pathfinding_controller)
     : UISystem{ui_context, window_context, rendering_context} {
   m_map_selection_context = &map_selection_context;
   m_client_session_context = &client_session_context;
   m_territory_controller = territory_controller;
   m_territory_view = territory_view;
+  m_geodata_controller = geodata_controller;
+  m_pathfinding_window = pathfinding_window;
+  m_pathfinding_controller = pathfinding_controller;
 }
 
 UISystem::~UISystem() {
@@ -84,25 +101,43 @@ UISystem::~UISystem() {
 }
 
 void UISystem::frame_begin(Timestep frame_time) {
+  if (m_geodata_controller != nullptr) {
+    m_geodata_controller->poll();
+  }
   if (m_territory_controller != nullptr) {
     m_territory_controller->poll();
-    m_client_session_context->set_switch_blocked(m_territory_controller->active());
+  }
+  if (m_client_session_context != nullptr) {
+    m_client_session_context->set_switch_blocked(
+        (m_geodata_controller != nullptr && m_geodata_controller->active()) ||
+        (m_territory_controller != nullptr && m_territory_controller->active()) ||
+        (m_pathfinding_controller != nullptr && m_pathfinding_controller->active()));
   }
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-  if (m_map_selection_context != nullptr) {
-    maps_window();
-  }
+  prepare_ui_window(UIWindow::Geodata);
+  geodata_window();
   if (m_client_session_context != nullptr) {
+    prepare_ui_window(UIWindow::Client);
     client_window();
   }
-  rendering_window(frame_time);
-  geodata_window();
+  if (m_map_selection_context != nullptr) {
+    prepare_ui_window(UIWindow::Maps);
+    maps_window();
+  }
   if (m_territory_controller != nullptr && m_territory_view != nullptr) {
+    prepare_ui_window(UIWindow::TerritoryRender);
     draw_territory_render_window(*m_territory_view, *m_territory_controller,
                                 *m_map_selection_context, *m_client_session_context);
+  }
+  prepare_ui_window(UIWindow::Rendering);
+  rendering_window(frame_time);
+  if(m_pathfinding_window && m_pathfinding_controller) {
+    prepare_ui_window(UIWindow::Pathfinding);
+    m_pathfinding_window->frame(*m_pathfinding_controller,m_rendering_context.camera,
+      m_map_selection_context ? m_map_selection_context->current_label() : std::string{});
   }
 }
 
@@ -110,7 +145,10 @@ void UISystem::client_window() const {
   auto &client = *m_client_session_context;
   const auto current = path_label(client.current_client());
 
-  ImGui::Begin("Client", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  if (!ImGui::Begin("Client", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    ImGui::End();
+    return;
+  }
   ImGui::TextUnformatted("Current client:");
   ImGui::TextWrapped("%s", current.c_str());
   ImGui::BeginDisabled(client.switch_blocked());
@@ -134,7 +172,7 @@ void UISystem::client_window() const {
 
   ImGui::EndDisabled();
   if (client.switch_blocked()) {
-    ImGui::TextUnformatted("Client switching is locked while a territory job runs.");
+    ImGui::TextUnformatted("Client switching is locked while a build or render job runs.");
   }
   if (!client.error().empty()) {
     ImGui::TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "%s", client.error().c_str());
@@ -154,7 +192,10 @@ void UISystem::rendering_window(Timestep frame_time) const {
 
   const auto &camera_position = m_rendering_context.camera.position();
 
-  ImGui::Begin("Rendering", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  if (!ImGui::Begin("Rendering", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    ImGui::End();
+    return;
+  }
   ImGui::Text("CPU frame time: %f", frame_time.seconds());
   ImGui::Text("Draws: %d", m_ui_context.rendering.draws);
   ImGui::Text("Camera");
@@ -168,6 +209,8 @@ void UISystem::rendering_window(Timestep frame_time) const {
     if (ImGui::Checkbox("Auto-load current map", &auto_load)) {
       m_map_selection_context->set_auto_load(auto_load);
     }
+    if (!auto_load)
+      ImGui::TextUnformatted("Manual mode: checked current map has full detail.");
     auto include_neighbors = m_map_selection_context->include_neighbors();
     ImGui::BeginDisabled(!auto_load);
     if (ImGui::Checkbox("Include +1 neighbors", &include_neighbors)) {
@@ -236,7 +279,10 @@ void UISystem::maps_window() const {
   const auto &catalog = selection.catalog();
   const auto summary = selection.summary();
 
-  ImGui::Begin("Maps");
+  if (!ImGui::Begin("Maps")) {
+    ImGui::End();
+    return;
+  }
   if (ImGui::Button("Select All")) {
     selection.select_all_manual();
   }
@@ -252,12 +298,13 @@ void UISystem::maps_window() const {
               summary.loading, summary.failed);
   ImGui::TextUnformatted("State: - unloaded | Q queued | L loading | T terrain "
                          "| D detail | ! failed");
+  ImGui::TextUnformatted("Checked current map: full detail | Other checks: terrain");
 
   if (!catalog.regions().empty()) {
     const auto extents = catalog.extents();
     const auto x_count = extents.max_x - extents.min_x + 1;
     const auto column_count = x_count + 1;
-    constexpr auto column_width = 86.0f;
+    constexpr auto column_width = 118.0f;
     const auto flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                        ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
                        ImGuiTableFlags_SizingFixedFit;
@@ -294,6 +341,20 @@ void UISystem::maps_window() const {
           ImGui::SameLine();
           ImGui::Text("%s %s", region->name.c_str(),
                       map_state_label(selection, coordinate));
+          ImGui::SameLine();
+          ImGui::BeginDisabled(!selection.grid());
+          if (ImGui::ArrowButton(("go" + id).c_str(), ImGuiDir_Right)) {
+            const auto target = map_focus_target(selection, coordinate,
+                m_rendering_context.camera.position().z);
+            if (target) {
+              if (m_pathfinding_window) m_pathfinding_window->context.focus(*target,m_rendering_context.camera);
+              else m_rendering_context.camera.set_position(*target);
+            }
+          }
+          ImGui::EndDisabled();
+          if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip(selection.grid() ? "Go to the center of this map (keeps checkboxes)"
+                                               : "Load the starting map to initialize the world grid");
         }
       }
       ImGui::EndTable();
@@ -303,14 +364,23 @@ void UISystem::maps_window() const {
 }
 
 void UISystem::geodata_window() const {
-  ImGui::Begin("Geodata", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-
-  if (m_ui_context.geodata.streaming_preview) {
-    ImGui::TextWrapped(
-        "Streamed preview geometry is not a geodata generation input. Use "
-        "the CLI --build workflow for complete map geometry.");
+  if (!ImGui::Begin("Geodata", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    ImGui::End();
+    return;
   }
-
+  const bool busy = m_geodata_controller && m_geodata_controller->active();
+  const auto maps = m_map_selection_context
+                        ? selected_render_maps(*m_map_selection_context)
+                        : std::vector<std::string>{};
+  ImGui::Text("Selected maps: %zu", maps.size());
+  ImGui::TextWrapped("Builds complete map geometry for the checked maps in Maps. "
+                     "Each build saves files in a new output folder.");
+  ImGui::BeginDisabled(busy);
+  ImGui::Checkbox("L2J", &m_ui_context.geodata.l2j);
+  ImGui::SameLine();
+  ImGui::Checkbox("Navmesh (experimental)", &m_ui_context.geodata.navmesh);
+  ImGui::BeginDisabled(!m_ui_context.geodata.l2j);
+  ImGui::TextUnformatted("L2J settings");
   ImGui::PushItemWidth(50);
   ImGui::InputFloat("Actor Height", &m_ui_context.geodata.actor_height);
   ImGui::InputFloat("Actor Radius", &m_ui_context.geodata.actor_radius);
@@ -322,28 +392,81 @@ void UISystem::geodata_window() const {
                     &m_ui_context.geodata.max_walkable_climb);
   ImGui::InputFloat("Cell Size", &m_ui_context.geodata.cell_size);
   ImGui::InputFloat("Cell Height", &m_ui_context.geodata.cell_height);
-
-  ImGui::BeginDisabled(m_ui_context.geodata.streaming_preview);
-  if (ImGui::Button("Reset")) {
-    m_ui_context.geodata.set_defaults();
-
-    ASSERT(m_ui_context.geodata.build_handler, "App",
-           "Geodata build handler must be defined");
-    m_ui_context.geodata.build_handler();
+  ImGui::PopItemWidth();
+  ImGui::Checkbox("Include client DAT (_conv.dat)", &m_ui_context.geodata.client_dat);
+  ImGui::TextDisabled("L2J Cell Size must remain 16.");
+  ImGui::EndDisabled();
+  if (m_ui_context.geodata.navmesh && ImGui::CollapsingHeader("Navmesh settings")) {
+    auto &n=m_ui_context.geodata.navmesh_settings;
+    ImGui::PushItemWidth(90);
+    ImGui::InputFloat("Actor Height##navmesh", &n.actor_height);
+    ImGui::InputFloat("Actor Radius##navmesh", &n.actor_radius);
+    ImGui::InputFloat("Max Climb##navmesh", &n.max_climb);
+    ImGui::InputFloat("Max Slope##navmesh", &n.max_slope);
+    ImGui::InputFloat("Cell Size##navmesh", &n.cell_size);
+    ImGui::InputFloat("Cell Height##navmesh", &n.cell_height);
+    ImGui::InputInt("Tile cells##navmesh", &n.tile_cells);
+    ImGui::PopItemWidth();
+    ImGui::TextWrapped("Experimental ground navigation. External region seams, "
+                      "doors, swimming and drop links are not verified. No server files are changed.");
   }
-
-  ImGui::SameLine();
-
-  if (ImGui::Button("Build")) {
-    ASSERT(m_ui_context.geodata.build_handler, "App",
-           "Geodata build handler must be defined");
-    m_ui_context.geodata.build_handler();
+  if (ImGui::Button("Reset settings"))
+    m_ui_context.geodata.set_defaults();
+  if (ImGui::IsItemHovered()) {
+    ImGui::SetTooltip("Restore L2J and Navmesh parameters. Does not build "
+                      "or delete files; keeps output format choices.");
   }
   ImGui::EndDisabled();
-
   ImGui::SameLine();
-
-  ImGui::Checkbox("Export", &m_ui_context.geodata.should_export);
-
+  ImGui::BeginDisabled(busy || maps.empty() ||
+                       (!m_ui_context.geodata.l2j && !m_ui_context.geodata.navmesh) || !m_geodata_controller ||
+                       !m_client_session_context ||
+                       (m_client_session_context &&
+                        m_client_session_context->requested_client().has_value()));
+  if (ImGui::Button("Build selected")) {
+    const auto &s = m_ui_context.geodata;
+    m_geodata_controller->start(m_client_session_context->current_client(), maps,
+        geodata::BuilderSettings{s.actor_height, s.actor_radius, s.max_walkable_angle,
+                                 s.min_walkable_climb, s.max_walkable_climb,
+                                 s.cell_size, s.cell_height}, s.l2j && s.client_dat,
+        s.l2j, s.navmesh, s.navmesh_settings, true);
+    m_client_session_context->set_switch_blocked(
+        m_geodata_controller->active() ||
+        (m_territory_controller && m_territory_controller->active()));
+  }
+  ImGui::EndDisabled();
+  if (busy) {
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel"))
+      m_geodata_controller->cancel();
+  }
+  if (m_geodata_controller) {
+    const auto &controller = *m_geodata_controller;
+    if (const auto &status = controller.status()) {
+      const auto phase = status->phase == territory::Phase::Rendering
+                             ? std::string{"building"}
+                             : std::string{territory::phase_name(status->phase)};
+      ImGui::Text("State: %s | Map: %s", phase.c_str(), status->map.c_str());
+      if (!controller.format().empty())
+        ImGui::Text("Format: %s | Tiles: %zu / %zu", controller.format().c_str(),
+                    status->tiles_done,status->tiles_total);
+      ImGui::Text("Finished: %zu / %zu", status->map_index, status->map_count);
+      if (status->map_count)
+        ImGui::ProgressBar(static_cast<float>(status->map_index) / status->map_count);
+      if (!status->error.empty())
+        ImGui::TextWrapped("%s", status->error.c_str());
+    }
+    if (!controller.error().empty() &&
+        (!controller.status() || controller.status()->error != controller.error()))
+      ImGui::TextWrapped("Error: %s", controller.error().c_str());
+    const auto &output = controller.job_directory().empty()
+                             ? controller.output_root() : controller.job_directory();
+    ImGui::TextWrapped("Output: %s", path_label(output).c_str());
+    if (!controller.job_directory().empty() && ImGui::Button("Open output folder")) {
+#ifdef _WIN32
+      ShellExecuteW(nullptr, L"open", output.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+#endif
+    }
+  }
   ImGui::End();
 }

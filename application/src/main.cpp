@@ -7,8 +7,11 @@
 #include "CommandLine.h"
 #include "DesktopStartup.h"
 #include "ExecutablePath.h"
+#include "GeodataBuildJob.h"
+#include "PathfindingJob.h"
 #include "RecentClients.h"
 #include "TerritoryCommandLine.h"
+#include <territory/PathIO.h>
 
 #include <cstdlib>
 #include <exception>
@@ -87,7 +90,44 @@ auto run_desktop(const Application &application) -> int {
 } // namespace
 
 auto main(int argc, char **argv) -> int {
-  if (auto result = dispatch_territory_command(territory_utf8_arguments(argc, argv))) {
+  const auto utf8_arguments = territory_utf8_arguments(argc, argv);
+  if (std::find(utf8_arguments.begin(),utf8_arguments.end(),"--pathfinding-case")!=utf8_arguments.end()) {
+    try {
+      const bool bundled = utf8_arguments.size() == 5 &&
+          utf8_arguments[1] == "--pathfinding-case" && utf8_arguments[3] == "--output";
+      const bool explicit_profile = utf8_arguments.size() == 7 &&
+          utf8_arguments[1] == "--pathfinding-case" &&
+          utf8_arguments[3] == "--backend-profile" && utf8_arguments[5] == "--output";
+      if (!bundled && !explicit_profile)
+        throw std::invalid_argument("Requires --pathfinding-case <case.json> [--backend-profile <profile.json>] --output <new-absolute-directory>");
+      const auto path=[&](std::size_t i) {const auto &s=utf8_arguments[i];return std::filesystem::path{std::u8string{reinterpret_cast<const char8_t *>(s.data()),s.size()}};};
+      const auto profile = explicit_profile ? path(4) :
+          pathfinding::default_backend_profile_path(running_executable_directory());
+      if (profile.empty())
+        throw std::invalid_argument("Bundled backend is missing. Keep pathfinding-backend beside the EXE or select --backend-profile.");
+      const auto job = make_pathfinding_job(pathfinding::read_case(path(2)),
+          pathfinding::read_profile(profile), path(bundled ? 4 : 6));
+      return run_pathfinding_job_file(job.directory);
+    } catch(const std::exception &e) {std::cerr<<e.what()<<'\n';return 2;}
+  }
+  if (std::find(utf8_arguments.begin(), utf8_arguments.end(), "--pathfinding-job") != utf8_arguments.end()) {
+    if (utf8_arguments.size()!=3 || utf8_arguments[1]!="--pathfinding-job") {
+      std::cerr<<"Requires only --pathfinding-job <absolute-directory>\n";return 2;
+    }
+    const auto &p=utf8_arguments[2];
+    return run_pathfinding_job_file(std::filesystem::path{std::u8string{reinterpret_cast<const char8_t *>(p.data()),p.size()}});
+  }
+  if (std::find(utf8_arguments.begin(), utf8_arguments.end(), "--geodata-job") !=
+      utf8_arguments.end()) {
+    if (utf8_arguments.size() != 3 || utf8_arguments[1] != "--geodata-job") {
+      std::cerr << "Invalid geodata job: requires only --geodata-job <absolute-directory>\n";
+      return 2;
+    }
+    const auto &path = utf8_arguments[2];
+    return run_geodata_job_file(std::filesystem::path{
+        std::u8string{reinterpret_cast<const char8_t *>(path.data()), path.size()}});
+  }
+  if (auto result = dispatch_territory_command(utf8_arguments)) {
     return *result;
   }
   const Application application{running_executable_directory()};
@@ -132,6 +172,11 @@ auto main(int argc, char **argv) -> int {
   // Help
   if (input.count("help") > 0) {
     std::cout << options.help() << std::endl;
+    std::cout << "Pathfinding Lab (headless, bundled or explicit local Java profile):\n"
+                 "  --pathfinding-job <absolute-directory>  (request.json schema 1; see tools/pathfinding/README.md)\n"
+                 "  --pathfinding-case <case.json> [--backend-profile <profile.json>] --output <new-absolute-directory>\n";
+    std::cout << "Geodata jobs (headless, L2J/Navmesh/both):\n"
+                 "  --geodata-job <absolute-directory>  (request.json schema 1 or 2; see README)\n";
     std::cout << "Territory tools (stdout: one JSON result; exit 0/2/3/130):\n"
                  "  --render-territory --client-root <sam> --output <dir> [--resolution 1024|2048|4096|8192|16384] [--no-water] [--no-textures] [--shadows [--sun-azimuth 0..360] [--sun-elevation 15..80]] -- dd_dd [...]\n"
                  "  --inspect-territory --client-root <sam> --output <dir> -- dd_dd [...]\n";

@@ -34,7 +34,9 @@ add_subdirectory(geometry)
 add_subdirectory(unreal)
 add_subdirectory(rendering)
 add_subdirectory(geodata)
+add_subdirectory(navmesh)
 add_subdirectory(territory)
+add_subdirectory(pathfinding)
 
 add_subdirectory(application)
 
@@ -47,8 +49,8 @@ if(BUILD_TESTING)
             -C $<CONFIG> --output-on-failure
         COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}"
             --config $<CONFIG> --prefix "${CMAKE_SOURCE_DIR}/dist" --component Runtime
-        DEPENDS copy-resources l2mapconv_tests window_system_tests territory_tests
-            territory_png_compare
+        DEPENDS copy-resources l2mapconv_tests navmesh_tests pathfinding_tests window_system_tests ui_settings_tests
+            live_visual_tests territory_tests territory_png_compare
         USES_TERMINAL
         VERBATIM)
 endif()

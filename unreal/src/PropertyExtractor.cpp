@@ -68,10 +68,27 @@ void PropertyExtractor::deserialize(Property &property) const {
     m_archive >> property.array_size;
     const auto size_size = input.tellg() - start_position;
     const auto array_size = property.size - size_size;
-    if (array_size < 0) throw std::runtime_error("Invalid Unreal property array size");
+    if (array_size < 0)
+      throw std::runtime_error("Invalid Unreal property array size");
     m_archive.require_bytes(static_cast<std::size_t>(array_size));
 
-    if (property.name == "Materials") {
+    if (property.name == "ZoneRenderState" &&
+        array_size !=
+            static_cast<std::int64_t>(property.array_size.value) * 4) {
+      // Older clients stored int[]. P542 stores tagged structs containing
+      // ZoneState and optional Skins. P542 tags with nonempty Skins can
+      // underreport Size (22_22.StaticMeshActor289: 26 bytes, actual 27).
+      // Read the counted, None-terminated structs, bounded by the containing
+      // export, as other tagged property lists are. Size is not an array end.
+      if (property.array_size.value < 0 ||
+          property.array_size.value > array_size)
+        throw std::runtime_error("Invalid zone render state count");
+      const auto end =
+          static_cast<std::streamoff>(input.tellg()) + m_archive.remaining();
+      Archive::ReadLimit limit(m_archive, end);
+      for (auto i = 0; i < property.array_size; ++i)
+        property.subproperties.push_back(extract_properties_map());
+    } else if (property.name == "Materials") {
       property.subproperties.reserve(property.array_size);
       const auto array_start_position = input.tellg();
 
@@ -95,7 +112,9 @@ void PropertyExtractor::deserialize(Property &property) const {
       m_archive >> property.vector_value;
     } else if (property.struct_name == "Color") {
       m_archive >> property.color_value;
-    } else if (property.struct_name == "TerrainLayer" || property.struct_name == "Matrix" || property.struct_name == "Plane") {
+    } else if (property.struct_name == "TerrainLayer" ||
+               property.struct_name == "Matrix" ||
+               property.struct_name == "Plane") {
       property.subproperties.push_back(extract_properties_map());
     } else {
       utils::Log(utils::LOG_DEBUG, "Unreal")

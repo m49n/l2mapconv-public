@@ -27,6 +27,7 @@ namespace {
 #ifdef _WIN32
 class WindowsProcess final : public TerritoryProcess {
 public:
+  explicit WindowsProcess(std::wstring option) : job_option(std::move(option)) {}
   ~WindowsProcess() override { close(); }
   void start(const std::filesystem::path &exe,
              const std::filesystem::path &directory) override {
@@ -44,7 +45,7 @@ public:
     if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation,
                                  &limits, sizeof(limits)))
       fail("SetInformationJobObject");
-    auto command = quote_windows_argument(exe.wstring()) + L" --render-job " +
+    auto command = quote_windows_argument(exe.wstring()) + L" " + job_option + L" " +
                    quote_windows_argument(directory.wstring());
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
@@ -89,6 +90,7 @@ public:
   }
 
 private:
+  std::wstring job_option;
   HANDLE process{}, job{};
   void close() noexcept {
     if (job) {
@@ -107,6 +109,8 @@ private:
 };
 #else
 class WindowsProcess final : public TerritoryProcess {
+public:
+  explicit WindowsProcess(std::wstring) {}
   void start(const std::filesystem::path &,
              const std::filesystem::path &) override {
     throw std::runtime_error("Territory worker requires Windows");
@@ -116,6 +120,8 @@ class WindowsProcess final : public TerritoryProcess {
 };
 #endif
 } // namespace
-std::unique_ptr<TerritoryProcess> make_territory_process() {
-  return std::make_unique<WindowsProcess>();
+std::unique_ptr<TerritoryProcess> make_territory_process(std::wstring option) {
+  if (option != L"--render-job" && option != L"--geodata-job")
+    throw std::invalid_argument("Unsupported worker mode");
+  return std::make_unique<WindowsProcess>(std::move(option));
 }

@@ -91,6 +91,21 @@ auto run_map_residency_tests() -> int {
                          desired.detail.empty(),
                      "disabled automatic loading keeps only manual terrain");
 
+  intent.manual = {{12, 12}, {22, 22}, {22, 23}};
+  desired = desired_map_residency(catalog, intent);
+  failures += expect(desired.terrain == Coordinates{{12, 12}, {22, 22}, {22, 23}} &&
+                         desired.detail == Coordinates{{22, 22}},
+                     "disabled automatic loading keeps full detail only for the selected current map");
+  intent.current = MapCoordinate{23, 22};
+  desired = desired_map_residency(catalog, intent);
+  failures += expect(desired.detail.empty(),
+                     "disabled automatic loading never adds detail for an unchecked current map");
+  intent.current = MapCoordinate{99, 99};
+  desired = desired_map_residency(catalog, intent);
+  failures += expect(desired.detail.empty(),
+                     "disabled automatic loading requests no detail outside the catalog");
+  intent.manual = {{12, 12}};
+
   intent.auto_load = true;
   intent.current = MapCoordinate{99, 99};
   desired = desired_map_residency(catalog, intent);

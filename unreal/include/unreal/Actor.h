@@ -8,6 +8,11 @@
 
 namespace unreal {
 
+struct ZoneRenderState {
+  std::int32_t state;
+  std::vector<MaterialReference> skins;
+};
+
 class Actor : public Object {
 public:
   Vector location;
@@ -17,6 +22,7 @@ public:
   Vector pre_pivot;
   ObjectRef<StaticMesh, ObjectRefRequirement::Optional> static_mesh;
   std::vector<MaterialReference> skins;
+  std::vector<ZoneRenderState> zone_render_states;
   bool delete_me;
   bool hidden;
   bool collide_actors;

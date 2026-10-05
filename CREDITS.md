@@ -48,6 +48,9 @@ No Java source from GeodataConverter is copied into this project either.
   `aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63`.
 
 - [Recast Navigation](https://github.com/recastnavigation/recastnavigation)
+  by Mikko Mononen and contributors. The optional navmesh builder uses Recast
+  and Detour directly, retaining the bundled upstream license and existing
+  local Recast patch. The MSET exchange layout follows RecastDemo.
 - [cxxopts](https://github.com/jarro2783/cxxopts)
 - [GLEW CMake](https://github.com/Perlmint/glew-cmake)
 - [GLFW](https://github.com/glfw/glfw)
@@ -57,6 +60,20 @@ No Java source from GeodataConverter is copied into this project either.
 
 Except for the pinned JSON header above, each dependency remains at the Git submodule revision recorded by this
 repository and retains its own upstream license.
+
+## Navmesh interoperability reference
+
+- [recast4j](https://github.com/recast4j/recast4j) by Piotr Piastucki and
+  contributors. Pathfinding Lab and the standalone Java acceptance test use its published
+  `org.recast4j:detour:1.5.12` library to read C++ MSET files and check paths.
+  The public Windows preview ZIP includes its pinned Detour JAR and license
+  notice for offline Navmesh queries. No Java library source is copied into
+  the C++ generator.
+
+- [Eclipse Temurin](https://adoptium.net/) supplies the Java runtime included
+  in the public Windows preview ZIP. Its notices and module licenses are
+  preserved. Matching runtime source is provided as a separate release asset;
+  Java is used only by the offline pathfinding backend, not the C++ generator.
 
 ## Historical implementation references
 

@@ -12,5 +12,6 @@ public:
   virtual std::optional<int> exit_code() = 0;
   virtual void terminate_owned() = 0;
 };
-std::unique_ptr<TerritoryProcess> make_territory_process();
+std::unique_ptr<TerritoryProcess> make_territory_process(
+    std::wstring job_option = L"--render-job");
 std::wstring quote_windows_argument(std::wstring_view);

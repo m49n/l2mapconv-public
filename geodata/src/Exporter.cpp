@@ -85,7 +85,7 @@ Exporter::Exporter(const std::filesystem::path &root_path)
 }
 
 void Exporter::export_geodata(const ExportBuffer &buffer,
-                              const std::string &name) const {
+                              const std::string &name, bool client_dat) const {
   if (name.empty() ||
       !std::all_of(name.begin(), name.end(), [](unsigned char character) {
         return std::isalnum(character) || character == '_' || character == '-';
@@ -104,7 +104,8 @@ void Exporter::export_geodata(const ExportBuffer &buffer,
 
   const auto l2j_path = m_root_path / (name + ".l2j");
   const auto pts_path = m_root_path / (name + "_conv.dat");
-  if (std::filesystem::exists(l2j_path) || std::filesystem::exists(pts_path)) {
+  if (std::filesystem::exists(l2j_path) ||
+      (client_dat && std::filesystem::exists(pts_path))) {
     throw std::runtime_error{"Geodata output already exists"};
   }
 
@@ -116,14 +117,17 @@ void Exporter::export_geodata(const ExportBuffer &buffer,
     L2JSerializer serializer;
     serializer.serialize(buffer, output);
   });
-  write_staged_file(staged_pts, [&](std::ostream &output) {
-    PtsSerializer serializer;
-    serializer.serialize(buffer, region_x, region_y, output);
-  });
+  if (client_dat) {
+    write_staged_file(staged_pts, [&](std::ostream &output) {
+      PtsSerializer serializer;
+      serializer.serialize(buffer, region_x, region_y, output);
+    });
+  }
 
   std::filesystem::create_hard_link(staged_l2j, l2j_path);
   try {
-    std::filesystem::create_hard_link(staged_pts, pts_path);
+    if (client_dat)
+      std::filesystem::create_hard_link(staged_pts, pts_path);
   } catch (...) {
     std::error_code ignored;
     std::filesystem::remove(l2j_path, ignored);
@@ -131,7 +135,8 @@ void Exporter::export_geodata(const ExportBuffer &buffer,
   }
 
   utils::Log(utils::LOG_INFO, "Geodata")
-      << "Geodata exported: " << l2j_path << " and " << pts_path << std::endl;
+      << "Geodata exported: " << l2j_path
+      << (client_dat ? " (client DAT included)" : "") << std::endl;
 }
 
 } // namespace geodata
